@@ -28,25 +28,29 @@ export function SocialHandoff({
   const wsSubscribe = useWsStore((s) => s.subscribe);
   const wsSend = useWsStore((s) => s.send);
   const matchId = useLobbyStore((s) => s.match?.id);
-  const connected = useRef(false);
+
+  const pendingSends = useRef(new Set<string>());
 
   useEffect(() => {
-    if (connected.current) return;
-    connected.current = true;
     const unsub = wsSubscribe("lobby", (msg) => {
       if (isChatEvent(msg)) {
+        if (pendingSends.current.has(msg.payload.body)) {
+          pendingSends.current.delete(msg.payload.body);
+          return;
+        }
         setMessages((prev) => [
           ...prev,
           createChatMessage(msg.payload.body, "them"),
         ]);
       }
     });
-    return unsub;
+    return () => unsub();
   }, [wsSubscribe]);
 
   const send = useCallback(() => {
     const body = input.trim();
     if (!body || !matchId) return;
+    pendingSends.current.add(body);
     const optimistic = createChatMessage(body, "me");
     setMessages((prev) => [...prev, optimistic]);
     wsSend("lobby", {
