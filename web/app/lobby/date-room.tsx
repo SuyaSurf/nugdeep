@@ -1,13 +1,17 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, Suspense } from "react";
 import { LogOut, Send, Volume2, VolumeX } from "lucide-react";
 import { LiveKitRoom, RoomAudioRenderer } from "@livekit/components-react";
+import { Canvas } from "@react-three/fiber";
+import * as THREE from "three";
 import { useLobbyStore } from "@/lib/stores/lobby-store";
 import { useWsStore } from "@/lib/stores/ws-store";
 import { createChatMessage, isChatEvent, type ChatMessage } from "@/lib/chat";
 import { LOCATIONS, getLocation } from "@/lib/locations";
 import { playExperienceSelect, pulseHaptic } from "@/components/experience/experience-audio";
+import LocationScene from "@/components/date/LocationScene";
+import SpatialVoiceControls from "@/components/date/SpatialVoiceControls";
 
 interface Props {
   onExit: () => void;
@@ -66,11 +70,25 @@ export function DateRoom({ onExit }: Props) {
       <div
         className="social-room__scene"
         aria-hidden="true"
-        style={{ background: location.colors }}
+        style={{ position: "relative", overflow: "hidden", background: location.colors }}
       >
-        <span className="social-room__horizon" />
-        <span className="social-room__you" />
-        <span className="social-room__them" />
+        <Canvas
+          style={{ position: "absolute", inset: 0, pointerEvents: "none" }}
+          camera={{ position: [0, 1.5, 3], fov: 60 }}
+          gl={{
+            antialias: true,
+            alpha: false,
+            toneMapping: THREE.ACESFilmicToneMapping,
+            toneMappingExposure: 1.0,
+          }}
+          dpr={[1, 1.5]}
+        >
+          <Suspense fallback={null}>
+            {location && <LocationScene location={location} />}
+          </Suspense>
+        </Canvas>
+        <span className="social-room__you" style={{ position: "absolute", zIndex: 2, bottom: "19%", left: "31%" }} />
+        <span className="social-room__them" style={{ position: "absolute", zIndex: 2, bottom: "19%", right: "31%" }} />
       </div>
 
       <header className="social-room__header">
@@ -128,6 +146,7 @@ export function DateRoom({ onExit }: Props) {
             video={false}
           >
             <RoomAudioRenderer />
+            <SpatialVoiceControls />
           </LiveKitRoom>
         </div>
       )}
