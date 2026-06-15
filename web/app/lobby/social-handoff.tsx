@@ -7,6 +7,11 @@ import { playExperienceSelect, pulseHaptic } from "@/components/experience/exper
 import { useWsStore } from "@/lib/stores/ws-store";
 import { useLobbyStore } from "@/lib/stores/lobby-store";
 import { createChatMessage, isChatEvent, type ChatMessage } from "@/lib/chat";
+import {
+  LiveKitRoom,
+  RoomAudioRenderer,
+  useLocalParticipant,
+} from "@livekit/components-react";
 
 interface Props {
   intent: LobbyIntent;
@@ -24,6 +29,8 @@ export function SocialHandoff({
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [talking, setTalking] = useState(false);
+  const [livekitToken, setLivekitToken] = useState("");
+  const [livekitUrl, setLivekitUrl] = useState("");
   const isDate = intent === "speed_date";
   const wsSubscribe = useWsStore((s) => s.subscribe);
   const wsSend = useWsStore((s) => s.send);
@@ -46,6 +53,18 @@ export function SocialHandoff({
     });
     return () => unsub();
   }, [wsSubscribe]);
+
+  useEffect(() => {
+    if (!matchId) return;
+    import("@/lib/api").then(({ apiFetch }) => {
+      apiFetch(`/api/v1/lobby/${matchId}/voice-token`, { method: "POST" })
+        .then((res: { token?: string; url?: string }) => {
+          if (res.token) setLivekitToken(res.token);
+          if (res.url) setLivekitUrl(res.url);
+        })
+        .catch(() => {});
+    });
+  }, [matchId]);
 
   const send = useCallback(() => {
     const body = input.trim();
@@ -138,6 +157,30 @@ export function SocialHandoff({
           </>
         )}
       </div>
+      {livekitToken && livekitUrl && (
+        <div style={{ display: "none" }}>
+          <LiveKitRoom
+            token={livekitToken}
+            serverUrl={livekitUrl}
+            connect={true}
+            audio={false}
+            video={false}
+          >
+            <RoomAudioRenderer />
+            <PushToTalkMic talking={talking} />
+          </LiveKitRoom>
+        </div>
+      )}
     </section>
   );
+}
+
+function PushToTalkMic({ talking }: { talking: boolean }) {
+  const { localParticipant } = useLocalParticipant();
+
+  useEffect(() => {
+    localParticipant?.setMicrophoneEnabled(talking);
+  }, [talking, localParticipant]);
+
+  return null;
 }
