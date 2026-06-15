@@ -37,6 +37,7 @@ export function SocialHandoff({
   const matchId = useLobbyStore((s) => s.match?.id);
 
   const pendingSends = useRef(new Set<string>());
+  const unmounted = useRef(false);
 
   useEffect(() => {
     const unsub = wsSubscribe("lobby", (msg) => {
@@ -51,7 +52,10 @@ export function SocialHandoff({
         ]);
       }
     });
-    return () => unsub();
+    return () => {
+      unmounted.current = true;
+      unsub();
+    };
   }, [wsSubscribe]);
 
   useEffect(() => {
@@ -59,6 +63,7 @@ export function SocialHandoff({
     import("@/lib/api").then(({ apiFetch }) => {
       apiFetch(`/api/v1/lobby/${matchId}/voice-token`, { method: "POST" })
         .then((res: { token?: string; url?: string }) => {
+          if (unmounted.current) return;
           if (res.token) setLivekitToken(res.token);
           if (res.url) setLivekitUrl(res.url);
         })
@@ -163,7 +168,7 @@ export function SocialHandoff({
             token={livekitToken}
             serverUrl={livekitUrl}
             connect={true}
-            audio={false}
+            audio={true}
             video={false}
           >
             <RoomAudioRenderer />
