@@ -2,13 +2,14 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "@clerk/nextjs";
-import { ArrowLeft, Check, Swords } from "lucide-react";
+import { ArrowLeft, Check } from "lucide-react";
 import { ExperienceShell } from "@/components/experience/ExperienceShell";
 import {
   playExperienceSelect,
   pulseHaptic,
 } from "@/components/experience/experience-audio";
 import { getGame, getReadyGames } from "@/lib/games/registry";
+import { theButton } from "@/lib/games/the-button";
 import type { Activity } from "@/lib/lobby";
 import { getTodaysActivity, joinQueue, leaveQueue } from "@/lib/lobby";
 import {
@@ -20,6 +21,7 @@ import {
   type LobbyIntent,
 } from "@/lib/lobby-experience";
 import { wsConnectRooms } from "@/lib/api";
+import { GameShell } from "@/components/game/GameShell";
 import { IntentStep } from "./intent-step";
 import { ActivityStep } from "./activity-step";
 import { GamePicker } from "./game-picker";
@@ -88,6 +90,7 @@ function LobbyExperience({
   const [matchId, setMatchId] = useState("");
   const [opponent, setOpponent] = useState("Signal 27");
   const [location, setLocation] = useState("");
+  const [gameResult, setGameResult] = useState<{ myScore: number; theirScore: number } | null>(null);
 
   const gameProfile = getGame(game);
   const intentProfile = getIntentOptions().find((item) => item.id === intent);
@@ -191,7 +194,8 @@ function LobbyExperience({
     setPhase("activity");
   }, [demo, tokenProvider]);
 
-  const finishGame = () => {
+  const finishGame = (result?: { myScore: number; theirScore: number }) => {
+    if (result) setGameResult(result);
     const handoff = getIntentHandoff(intent);
     if (handoff === "location_picker") setPhase("location");
     if (handoff === "friend_chat") setPhase("chat");
@@ -273,40 +277,10 @@ function LobbyExperience({
           />
         )}
         {phase === "playing" && (
-          <section className="game-chamber">
-            <div
-              className="game-chamber__artifact"
-              style={
-                {
-                  "--artifact-primary": gameProfile?.colors.primary ?? "#8e9dff",
-                  "--artifact-accent": gameProfile?.colors.accent ?? "#b8ff72",
-                } as React.CSSProperties
-              }
-              aria-hidden="true"
-            >
-              <span />
-              <i />
-              <Swords />
-            </div>
-            <p className="lobby-kicker">Shared table / {intentProfile?.shortLabel}</p>
-            <h1>{gameProfile?.name}</h1>
-            <p>
-              You and {opponent} are at the same table. This shell hands off to
-              the live game engine when the round starts.
-            </p>
-            <div className="game-chamber__players">
-              <span>You / ready</span>
-              <span>{opponent} / ready</span>
-            </div>
-            <button
-              type="button"
-              className="lobby-primary-action"
-              onClick={finishGame}
-            >
-              Finish the round
-              <Check size={18} />
-            </button>
-          </section>
+          <GameShell
+            engine={theButton}
+            onComplete={(result) => finishGame({ myScore: result.myScore, theirScore: result.theirScore })}
+          />
         )}
         {phase === "location" && (
           <LocationPicker
@@ -329,7 +303,7 @@ function LobbyExperience({
         )}
         {phase === "results" && (
           <section className="result-stage">
-            <span className="result-stage__score">1:0</span>
+            <span className="result-stage__score">{gameResult?.myScore ?? 0}:{gameResult?.theirScore ?? 0}</span>
             <p className="lobby-kicker">The clean exit</p>
             <h1>Good game. Nothing owed.</h1>
             <p>
