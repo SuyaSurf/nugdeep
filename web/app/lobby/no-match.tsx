@@ -1,13 +1,14 @@
 "use client";
 
-import { ArrowLeft, RotateCcw } from "lucide-react";
+import { ArrowLeft, Bot, RotateCcw } from "lucide-react";
 
 interface Props {
   onRetry: () => void;
   onChange: () => void;
+  onPlayAI?: () => void;
 }
 
-export function NoMatch({ onRetry, onChange }: Props) {
+export function NoMatch({ onRetry, onChange, onPlayAI }: Props) {
   return (
     <section className="empty-stage">
       <span className="empty-stage__signal" aria-hidden="true" />
@@ -26,6 +27,12 @@ export function NoMatch({ onRetry, onChange }: Props) {
           <ArrowLeft size={17} />
           Change the route
         </button>
+        {onPlayAI && (
+          <button type="button" className="lobby-secondary-action" onClick={onPlayAI}>
+            <Bot size={17} />
+            Play against AI
+          </button>
+        )}
       </div>
     </section>
   );

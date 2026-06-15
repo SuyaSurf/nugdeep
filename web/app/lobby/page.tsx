@@ -11,7 +11,7 @@ import {
 import { getGame, getReadyGames } from "@/lib/games/registry";
 import { getEngineOrDefault } from "@/lib/games/engines";
 import type { Activity } from "@/lib/lobby";
-import { getTodaysActivity, joinQueue, leaveQueue } from "@/lib/lobby";
+import { getTodaysActivity, joinQueue, leaveQueue, startAIGame } from "@/lib/lobby";
 import {
   getDailyGameLineup,
   getDayKey,
@@ -200,6 +200,26 @@ function LobbyExperience({
     if (handoff === "results") setPhase("results");
   };
 
+  const playAI = useCallback(async () => {
+    if (demo) {
+      setMatchId(`ai_preview_${dayKey}`);
+      setOpponent("AI");
+      setPhase("matched");
+      return;
+    }
+    try {
+      const token = await tokenProvider?.();
+      const resp = await startAIGame(token);
+      setMatchId(resp.match_id);
+      setOpponent(resp.opponent);
+      setPhase("matched");
+    } catch {
+      setMatchId(`ai_fallback_${dayKey}`);
+      setOpponent("AI");
+      setPhase("matched");
+    }
+  }, [demo, dayKey, tokenProvider]);
+
   const reset = () => {
     setPhase("intent");
     setChoice("");
@@ -322,6 +342,7 @@ function LobbyExperience({
               else setPhase("activity");
             }}
             onChange={() => setPhase("game")}
+            onPlayAI={playAI}
           />
         )}
       </div>
