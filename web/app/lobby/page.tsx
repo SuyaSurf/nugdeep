@@ -297,6 +297,7 @@ function LobbyExperience({
         {phase === "playing" && (
           <GameShell
             engine={getEngineOrDefault(game)}
+            matchId={matchId || undefined}
             onComplete={(result) => finishGame({ myScore: result.myScore, theirScore: result.theirScore })}
           />
         )}
