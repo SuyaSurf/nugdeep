@@ -18,9 +18,16 @@ export function MatchmakingStatus({
   onTimeout,
   onCancel,
 }: Props) {
+  const [phase, setPhase] = useState<"listening" | "connecting">("listening");
   const [seconds, setSeconds] = useState(30);
 
   useEffect(() => {
+    const listenTimer = window.setTimeout(() => setPhase("connecting"), 3000);
+    return () => window.clearTimeout(listenTimer);
+  }, []);
+
+  useEffect(() => {
+    if (phase !== "connecting") return;
     const timer = window.setInterval(() => {
       setSeconds((current) => {
         if (current <= 1) {
@@ -32,7 +39,7 @@ export function MatchmakingStatus({
       });
     }, 1000);
     return () => window.clearInterval(timer);
-  }, [onTimeout]);
+  }, [phase, onTimeout]);
 
   return (
     <section className="matching-stage">
@@ -61,10 +68,12 @@ export function MatchmakingStatus({
         the choice <strong>{choiceLabel}</strong>.
       </p>
 
-      <div className="matching-stage__timer">
-        <span>{seconds}s</span>
-        <i style={{ "--queue-progress": `${(seconds / 30) * 100}%` } as React.CSSProperties} />
-      </div>
+      {phase === "connecting" && (
+        <div className="matching-stage__timer">
+          <span>{seconds}s</span>
+          <i style={{ "--queue-progress": `${(seconds / 30) * 100}%` } as React.CSSProperties} />
+        </div>
+      )}
     </section>
   );
 }
