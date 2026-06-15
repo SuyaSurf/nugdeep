@@ -20,7 +20,7 @@ export const useWsStore = create<WsStoreState>((set, get) => ({
 
   connect: (key, token, rooms) => {
     const existing = get().connections[key];
-    if (existing && existing.readyState === WebSocket.OPEN) return;
+    if (existing && (existing.readyState === WebSocket.OPEN || existing.readyState === WebSocket.CONNECTING)) return;
 
     const ws = wsConnectRooms(token, rooms);
 
@@ -49,8 +49,9 @@ export const useWsStore = create<WsStoreState>((set, get) => ({
     const ws = get().connections[key];
     if (ws) { ws.close(); }
     set((s) => {
-      const { [key]: _, ...rest } = s.connections;
-      return { connections: rest };
+      const { [key]: _discard, ...rest } = s.connections;
+      const { [key]: _handlers, ...restHandlers } = s.handlers;
+      return { connections: rest, handlers: restHandlers };
     });
   },
 

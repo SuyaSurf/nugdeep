@@ -12,12 +12,12 @@ export interface AudioState {
   toggleMute: () => void;
 }
 
-export const useAudioStore = create<AudioState>((set, get) => ({
+export const useAudioStore = create<AudioState>((set) => ({
   isEnabled: false,
   isMuted: false,
   masterVolume: 1.0,
   setEnabled: (enabled) => set({ isEnabled: enabled }),
   setMuted: (muted) => set({ isMuted: muted }),
   setMasterVolume: (volume) => set({ masterVolume: volume }),
-  toggleMute: () => set({ isMuted: !get().isMuted }),
+  toggleMute: () => set((state) => ({ isMuted: !state.isMuted })),
 }));
