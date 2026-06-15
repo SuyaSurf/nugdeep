@@ -1,20 +1,38 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Check, MapPin } from "lucide-react";
 import {
   playExperienceSelect,
   pulseHaptic,
 } from "@/components/experience/experience-audio";
 import { LOCATIONS } from "@/lib/locations";
+import { pickLocations } from "@/lib/lobby";
+import { useWsStore } from "@/lib/stores/ws-store";
 
 interface Props {
+  matchId?: string;
   onComplete: (location: string) => void;
+  tokenProvider?: () => Promise<string | null>;
 }
 
-export function LocationPicker({ onComplete }: Props) {
+export function LocationPicker({ matchId, onComplete, tokenProvider }: Props) {
   const [selected, setSelected] = useState<string[]>([]);
   const [waiting, setWaiting] = useState(false);
+  const submitted = useRef(false);
+
+  useEffect(() => {
+    if (!waiting || !matchId) return;
+    const unsub = useWsStore.getState().subscribe("lobby", (msg) => {
+      const m = msg as Record<string, unknown>;
+      if (m.type === "lobby:location_chosen") {
+        const payload = m.payload as Record<string, unknown>;
+        const chosen = LOCATIONS.find((l) => l.id === payload.location_id);
+        if (chosen) onComplete(chosen.name);
+      }
+    });
+    return unsub;
+  }, [waiting, matchId, onComplete]);
 
   const toggle = (id: string) => {
     playExperienceSelect();
@@ -28,8 +46,18 @@ export function LocationPicker({ onComplete }: Props) {
     });
   };
 
-  const reveal = () => {
+  const reveal = async () => {
     setWaiting(true);
+    submitted.current = true;
+
+    if (matchId && selected.length === 2 && tokenProvider) {
+      try {
+        const token = await tokenProvider();
+        await pickLocations(matchId, selected, token);
+        return;
+      } catch {}
+    }
+
     window.setTimeout(() => {
       const chosen = LOCATIONS.find((location) => location.id === selected[0]);
       onComplete(chosen?.name ?? LOCATIONS[0].name);
@@ -94,4 +122,3 @@ export function LocationPicker({ onComplete }: Props) {
     </section>
   );
 }
-

@@ -20,7 +20,7 @@ import {
   getIntentOptions,
   type LobbyIntent,
 } from "@/lib/lobby-experience";
-import { wsConnectRooms } from "@/lib/api";
+import { useWsStore } from "@/lib/stores/ws-store";
 import { GameShell } from "@/components/game/GameShell";
 import { IntentStep } from "./intent-step";
 import { ActivityStep } from "./activity-step";
@@ -105,25 +105,23 @@ function LobbyExperience({
   useEffect(() => {
     if (phase !== "queued" || demo || !userId) return;
 
-    let socket: WebSocket | null = null;
-    let cancelled = false;
+    const { connect, disconnect, subscribe } = useWsStore.getState();
     tokenProvider?.().then((token) => {
-      if (cancelled) return;
-      socket = wsConnectRooms(token, [`user:${userId}`]);
-      socket.addEventListener("message", (event) => {
-        try {
-          const message = JSON.parse(event.data);
-          if (message.type !== "lobby:matched") return;
-          setMatchId(message.payload.match_id);
-          setOpponent(message.payload.opponent || "Another signal");
-          setPhase("matched");
-        } catch {}
-      });
+      connect("lobby", token, [`user:${userId}`]);
+    });
+
+    const unsub = subscribe("lobby", (msg) => {
+      if ((msg as Record<string, unknown>).type === "lobby:matched") {
+        const payload = (msg as Record<string, unknown>).payload as Record<string, unknown>;
+        setMatchId(payload.match_id as string);
+        setOpponent((payload.opponent as string) || "Another signal");
+        setPhase("matched");
+      }
     });
 
     return () => {
-      cancelled = true;
-      socket?.close();
+      unsub();
+      disconnect("lobby");
     };
   }, [demo, phase, tokenProvider, userId]);
 
@@ -284,6 +282,8 @@ function LobbyExperience({
         )}
         {phase === "location" && (
           <LocationPicker
+            matchId={matchId || undefined}
+            tokenProvider={clerkEnabled ? tokenProvider : undefined}
             onComplete={(selectedLocation) => {
               setLocation(selectedLocation);
               setPhase(intent === "speed_date" ? "date_room" : "chat");
@@ -291,7 +291,7 @@ function LobbyExperience({
           />
         )}
         {phase === "date_room" && (
-          <DateRoom onExit={reset} />
+          <DateRoom onExit={() => setPhase("chat")} />
         )}
         {phase === "chat" && (
           <SocialHandoff
