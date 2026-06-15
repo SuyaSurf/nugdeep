@@ -1,5 +1,3 @@
-"use client";
-
 export interface ChatMessage {
   id: string;
   sender: "me" | "them";
@@ -19,7 +17,7 @@ export interface IncomingChatEvent {
 
 export function createChatMessage(body: string, sender: "me" | "them", type: ChatMessage["type"] = "text"): ChatMessage {
   return {
-    id: `${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+    id: typeof crypto !== "undefined" ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
     sender,
     body,
     timestamp: Date.now(),
@@ -28,5 +26,11 @@ export function createChatMessage(body: string, sender: "me" | "them", type: Cha
 }
 
 export function isChatEvent(msg: unknown): msg is IncomingChatEvent {
-  return (msg as Record<string, unknown>)?.type === "chat:message";
+  return (
+    typeof msg === "object" &&
+    msg !== null &&
+    "type" in msg &&
+    (msg as Record<string, unknown>).type === "chat:message" &&
+    "payload" in msg
+  );
 }
