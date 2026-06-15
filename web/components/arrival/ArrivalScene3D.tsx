@@ -6,6 +6,7 @@ import dynamic from "next/dynamic";
 const Building3D = dynamic(() => import("./Building3D"), { ssr: false });
 const ApproachCamera = dynamic(() => import("./ApproachCamera"), { ssr: false });
 const AmbientCity = dynamic(() => import("./AmbientCity"), { ssr: false });
+const PresenceSignals3D = dynamic(() => import("./PresenceSignals3D"), { ssr: false });
 
 import { Canvas } from "@react-three/fiber";
 import * as THREE from "three";
@@ -93,6 +94,7 @@ export default function ArrivalScene3D() {
 
             <Building3D pointerX={pointer.x} pointerY={pointer.y} />
             <AmbientCity />
+            <PresenceSignals3D />
             <ApproachCamera
               approach={approaching}
               onApproachComplete={handleApproachComplete}
