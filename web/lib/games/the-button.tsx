@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { CircleStop, Timer } from "lucide-react";
+import { CircleStop, Timer, Hand } from "lucide-react";
 import { playExperienceSelect, pulseHaptic } from "@/components/experience/experience-audio";
 import type { GameEngine, GameState, GameResult } from "./game-engine";
 
@@ -9,6 +9,12 @@ interface TheButtonState extends GameState {
   startTime: number | null;
   stopTime: number | null;
   elapsed: number;
+}
+
+interface ChickenState extends GameState {
+  progress: number;
+  released: boolean;
+  releaseAt: number;
 }
 
 const initial = (seed?: string): TheButtonState => ({
@@ -138,4 +144,135 @@ export const theButton: GameEngine = {
   },
 
   Renderer: TheButtonRenderer,
+};
+
+const chickenInitial = (seed?: string): ChickenState => ({
+  round: { number: 1, prompt: "Hold the bar. First to release loses.", timeLimit: 20 },
+  status: "playing",
+  myInput: null,
+  theirInput: null,
+  timeRemaining: 20,
+  progress: 0,
+  released: false,
+  releaseAt: 0,
+});
+
+function ChickenRenderer({
+  state: genericState,
+  onInput,
+  result,
+}: {
+  state: GameState;
+  isMyTurn: boolean;
+  onInput: (input: unknown) => void;
+  result?: GameResult;
+}) {
+  const state = genericState as ChickenState;
+  const [progress, setProgress] = useState(0);
+  const [released, setReleased] = useState(false);
+  const raf = useRef<number>(0);
+  const startTime = useRef<number>(0);
+
+  useEffect(() => {
+    if (state.status !== "playing" || released) return;
+    startTime.current = performance.now();
+    const tick = () => {
+      const elapsed = (performance.now() - startTime.current) / 1000;
+      const pct = Math.min(100, (elapsed / 20) * 100);
+      setProgress(pct);
+      if (pct >= 100) {
+        setReleased(true);
+        onInput({ action: "forced", releaseAt: 100 });
+        return;
+      }
+      raf.current = requestAnimationFrame(tick);
+    };
+    raf.current = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf.current);
+  }, [state.status, released, onInput]);
+
+  const release = useCallback(() => {
+    if (released) return;
+    setReleased(true);
+    cancelAnimationFrame(raf.current);
+    playExperienceSelect();
+    pulseHaptic("select");
+    onInput({ action: "release", releaseAt: progress });
+  }, [released, progress, onInput]);
+
+  const barColor = progress < 50 ? "#22c55e" : progress < 80 ? "#eab308" : "#ef4444";
+
+  return (
+    <div className="game-chamber">
+      <div className="game-chamber__artifact" aria-hidden="true">
+        <span />
+        <i />
+        <Hand />
+      </div>
+      {result ? (
+        <>
+          <p className="lobby-kicker">{result.winner === "me" ? "You held." : result.winner === "them" ? "They held." : "Draw."}</p>
+          <h1>{result.summary}</h1>
+          <div className="game-chamber__players">
+            <span>You / {result.myScore.toFixed(0)}%</span>
+            <span>They / {result.theirScore.toFixed(0)}%</span>
+          </div>
+        </>
+      ) : (
+        <>
+          <p className="lobby-kicker">Hold the bar</p>
+          <h1 className="text-6xl tabular-nums">{progress.toFixed(0)}%</h1>
+          <div style={{ width: "100%", height: 12, background: "#1e293b", borderRadius: 6, overflow: "hidden", margin: "12px 0" }}>
+            <div style={{ width: `${progress}%`, height: "100%", background: barColor, transition: "background 0.3s", borderRadius: 6 }} />
+          </div>
+          <p>
+            {released
+              ? `You released at ${progress.toFixed(0)}%.`
+              : "First to release loses. Hold steady."}
+          </p>
+          {!released && (
+            <button type="button" className="lobby-primary-action" onClick={release}>
+              <Hand size={18} />
+              Hold ({progress.toFixed(0)}%)
+            </button>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+export const chicken: GameEngine = {
+  id: "chicken",
+  name: "Chicken",
+  maxRounds: 3,
+  roundTime: 20,
+
+  createInitialState: (seed) => chickenInitial(seed),
+
+  processInput: (state, input) => {
+    const { releaseAt } = input as { action: string; releaseAt: number };
+    return {
+      ...state,
+      status: "resolved",
+      myInput: { releaseAt },
+      releaseAt,
+      timeRemaining: 0,
+    };
+  },
+
+  resolve: (myState, theirState) => {
+    const myRelease = (myState as ChickenState).releaseAt;
+    const theirRelease = (theirState as ChickenState).releaseAt;
+
+    if (myRelease >= 100 && theirRelease >= 100) return { winner: "draw", myScore: myRelease, theirScore: theirRelease, summary: "Both held. Draw." };
+    if (myRelease >= 100) return { winner: "me", myScore: myRelease, theirScore: theirRelease, summary: `You held to 100%. They flinched at ${theirRelease.toFixed(0)}%. You win.` };
+    if (theirRelease >= 100) return { winner: "them", myScore: myRelease, theirScore: theirRelease, summary: `They held to 100%. You flinched at ${myRelease.toFixed(0)}%. They win.` };
+
+    if (myRelease > theirRelease) return { winner: "me", myScore: myRelease, theirScore: theirRelease, summary: `You held to ${myRelease.toFixed(0)}%. They flinched at ${theirRelease.toFixed(0)}%.` };
+    if (theirRelease > myRelease) return { winner: "them", myScore: myRelease, theirScore: theirRelease, summary: `They held to ${theirRelease.toFixed(0)}%. You flinched at ${myRelease.toFixed(0)}%.` };
+    return { winner: "draw", myScore: myRelease, theirScore: theirRelease, summary: `Both flinched at ${myRelease.toFixed(0)}%. Draw.` };
+  },
+
+  Renderer: ChickenRenderer,
 };

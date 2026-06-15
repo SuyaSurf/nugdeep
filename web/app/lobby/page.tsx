@@ -9,7 +9,7 @@ import {
   pulseHaptic,
 } from "@/components/experience/experience-audio";
 import { getGame, getReadyGames } from "@/lib/games/registry";
-import { theButton } from "@/lib/games/the-button";
+import { getEngineOrDefault } from "@/lib/games/engines";
 import type { Activity } from "@/lib/lobby";
 import { getTodaysActivity, joinQueue, leaveQueue } from "@/lib/lobby";
 import {
@@ -276,7 +276,7 @@ function LobbyExperience({
         )}
         {phase === "playing" && (
           <GameShell
-            engine={theButton}
+            engine={getEngineOrDefault(game)}
             onComplete={(result) => finishGame({ myScore: result.myScore, theirScore: result.theirScore })}
           />
         )}
