@@ -10,8 +10,9 @@ import {
 } from "@/components/experience/experience-audio";
 import { getGame, getReadyGames } from "@/lib/games/registry";
 import { getEngineOrDefault } from "@/lib/games/engines";
+import type { GameResult } from "@/lib/games/game-engine";
 import type { Activity } from "@/lib/lobby";
-import { getTodaysActivity, joinQueue, leaveQueue, startAIGame } from "@/lib/lobby";
+import { getTodaysActivity, joinQueue, leaveQueue, reportGameResult, startAIGame } from "@/lib/lobby";
 import {
   getDailyGameLineup,
   getDayKey,
@@ -192,8 +193,17 @@ function LobbyExperience({
     setPhase("activity");
   }, [demo, tokenProvider]);
 
-  const finishGame = (result?: { myScore: number; theirScore: number }) => {
-    if (result) setGameResult(result);
+  const finishGame = (result?: GameResult) => {
+    if (result) {
+      setGameResult({ myScore: result.myScore, theirScore: result.theirScore });
+
+      if (!demo && matchId && userId && !matchId.startsWith("ai_") && !matchId.startsWith("preview_")) {
+        const winnerId = result.winner === "me" ? userId : result.winner === "them" ? opponent : userId;
+        tokenProvider?.().then((token) => {
+          reportGameResult(matchId, winnerId, token).catch(() => {});
+        });
+      }
+    }
     const handoff = getIntentHandoff(intent);
     if (handoff === "location_picker") setPhase("location");
     if (handoff === "friend_chat") setPhase("chat");
@@ -298,7 +308,7 @@ function LobbyExperience({
           <GameShell
             engine={getEngineOrDefault(game)}
             matchId={matchId || undefined}
-            onComplete={(result) => finishGame({ myScore: result.myScore, theirScore: result.theirScore })}
+            onComplete={(result) => finishGame(result)}
           />
         )}
         {phase === "location" && (

@@ -68,3 +68,7 @@ type LocationPickRequest struct {
 type LocationChooseRequest struct {
 	LocationID string `json:"location_id"`
 }
+
+type GameResultRequest struct {
+	WinnerID string `json:"winner_id"`
+}

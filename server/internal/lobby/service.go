@@ -170,6 +170,29 @@ func (s *Service) ChooseLocation(ctx context.Context, matchID, userID, locationI
 	return isMatch, nil
 }
 
+func (s *Service) SetGameResult(ctx context.Context, matchID, userID, winnerID string) error {
+	match, err := s.GetMatch(ctx, matchID)
+	if err != nil {
+		return fmt.Errorf("match not found: %w", err)
+	}
+	if match.State != "matched" {
+		return fmt.Errorf("match is in state %q, expected matched", match.State)
+	}
+	if userID != match.PlayerA && userID != match.PlayerB {
+		return fmt.Errorf("user %q is not a player in this match", userID)
+	}
+
+	if winnerID == match.PlayerA {
+		match.WinnerID = &match.PlayerA
+		match.LoserID = &match.PlayerB
+	} else {
+		match.WinnerID = &match.PlayerB
+		match.LoserID = &match.PlayerA
+	}
+	match.State = "game_over"
+	return s.UpdateMatch(ctx, match)
+}
+
 func (s *Service) CleanupStaleEntries(ctx context.Context) {
 	cutoff := fmt.Sprintf("%d", time.Now().Add(-queueTTL).Unix())
 	iter := s.rdb.Scan(ctx, 0, fmt.Sprintf("%s:*", queuePrefix), 100).Iterator()

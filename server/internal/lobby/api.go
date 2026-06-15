@@ -24,6 +24,7 @@ func (h *Handler) Routes(r chi.Router) {
 	r.Delete("/lobby/queue", h.LeaveQueue)
 	r.Post("/lobby/{matchId}/locations", h.PickLocations)
 	r.Post("/lobby/{matchId}/choose-location", h.ChooseLocation)
+	r.Post("/lobby/{matchId}/result", h.SetGameResult)
 	r.Post("/lobby/ai", h.StartAI)
 }
 
@@ -149,6 +150,23 @@ func (h *Handler) ChooseLocation(w http.ResponseWriter, r *http.Request) {
 	h.hub.BroadcastToRoom("user:"+match.PlayerB, map[string]interface{}{"type": eventType, "payload": payload})
 
 	writeJSON(w, http.StatusOK, map[string]bool{"match": isMatch})
+}
+
+func (h *Handler) SetGameResult(w http.ResponseWriter, r *http.Request) {
+	userID := auth.UserIDFromContext(r.Context())
+	matchID := chi.URLParam(r, "matchId")
+	var req GameResultRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid body"})
+		return
+	}
+
+	if err := h.svc.SetGameResult(r.Context(), matchID, userID, req.WinnerID); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]string{"status": "recorded"})
 }
 
 func (h *Handler) StartAI(w http.ResponseWriter, r *http.Request) {

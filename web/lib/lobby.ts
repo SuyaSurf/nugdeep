@@ -64,3 +64,11 @@ export function chooseLocation(matchId: string, locationId: string, token?: stri
 export function startAIGame(token?: string | null): Promise<AIGameResponse> {
   return apiFetch('/api/v1/lobby/ai', { method: 'POST', token });
 }
+
+export function reportGameResult(matchId: string, winnerId: string, token?: string | null): Promise<void> {
+  return apiFetch(`/api/v1/lobby/${matchId}/result`, {
+    method: 'POST',
+    body: JSON.stringify({ winner_id: winnerId }),
+    token,
+  });
+}
