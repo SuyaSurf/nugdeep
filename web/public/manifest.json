@@ -1,0 +1,21 @@
+{
+  "name": "Bammby Games",
+  "short_name": "Bammby",
+  "description": "Quick 1v1 games that unlock conversations and connections.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#020617",
+  "theme_color": "#0f172a",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
