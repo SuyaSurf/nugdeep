@@ -175,6 +175,9 @@ func (h *Handler) Routes(r chi.Router) {
 		r.Get("/discover", h.Discover)
 
 		// Authenticated
+		// Public lobby activity — static data, no auth needed
+		r.Get("/lobby/activity", h.lobbyH.GetTodaysActivity)
+
 		r.Group(func(r chi.Router) {
 			r.Use(auth.Middleware)
 			r.Use(h.EnsureUser)
@@ -210,6 +213,7 @@ func (h *Handler) Routes(r chi.Router) {
 			r.Post("/spaces/{id}/kick", h.KickSpeaker)
 			r.Post("/spaces/{id}/mute", h.MuteSpeaker)
 			r.Post("/dates/{id}/voice-token", h.DateVoiceToken)
+			r.Post("/lobby/{matchId}/voice-token", h.DateVoiceToken)
 			r.Get("/daily", h.Daily)
 			r.Get("/streak", h.Streak)
 			r.Get("/bragging-card", h.BraggingCard)

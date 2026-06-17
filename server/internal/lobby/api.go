@@ -19,7 +19,6 @@ func NewHandler(svc *Service, hub *ws.Hub) *Handler {
 }
 
 func (h *Handler) Routes(r chi.Router) {
-	r.Get("/lobby/activity", h.GetTodaysActivity)
 	r.Post("/lobby/queue", h.JoinQueue)
 	r.Delete("/lobby/queue", h.LeaveQueue)
 	r.Post("/lobby/{matchId}/locations", h.PickLocations)
@@ -142,8 +141,9 @@ func (h *Handler) ChooseLocation(w http.ResponseWriter, r *http.Request) {
 	match, _ := h.svc.GetMatch(r.Context(), matchID)
 	eventType := "lobby:location_chosen"
 	payload := map[string]interface{}{
-		"match_id": matchID,
-		"match":    isMatch,
+		"match_id":    matchID,
+		"match":       isMatch,
+		"location_id": req.LocationID,
 	}
 
 	h.hub.BroadcastToRoom("user:"+match.PlayerA, map[string]interface{}{"type": eventType, "payload": payload})

@@ -1,0 +1,4 @@
+DROP TABLE IF EXISTS reports;
+DROP TABLE IF EXISTS blocks;
+DROP TYPE IF EXISTS report_reason;
+DROP TYPE IF EXISTS report_status;

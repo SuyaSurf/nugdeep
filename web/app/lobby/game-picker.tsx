@@ -27,10 +27,9 @@ export function GamePicker({ games, onSelect }: Props) {
     <section className="lobby-step">
       <header className="lobby-step__header">
         <p className="lobby-kicker">The daily shelf</p>
-        <h1>Tonight&apos;s game shelf</h1>
+        <h1>Tonight&apos;s games</h1>
         <p>
-          The building deals one game from each available genre. Everyone sees
-          the same shelf until midnight.
+          One game per category. Everyone sees the same deal until midnight.
         </p>
       </header>
 

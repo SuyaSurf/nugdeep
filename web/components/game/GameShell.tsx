@@ -11,9 +11,10 @@ interface GameShellProps {
   engine: GameEngine;
   onComplete: (result: GameResult) => void;
   matchId?: string;
+  aiLevel?: number;
 }
 
-export function GameShell({ engine, onComplete, matchId }: GameShellProps) {
+export function GameShell({ engine, onComplete, matchId, aiLevel }: GameShellProps) {
   const opponent = useLobbyStore((s) => s.match?.opponent ?? "Opponent");
   const [gameState, setGameState] = useState<GameState>(() =>
     engine.createInitialState()
@@ -85,17 +86,18 @@ export function GameShell({ engine, onComplete, matchId }: GameShellProps) {
     }
 
     const timer = setTimeout(() => {
+      const options = aiLevel ? { aiDifficulty: aiLevel } : undefined;
       const theirState = isMultiplayer
         ? engine.processInput(engine.createInitialState(), opponentInputRef.current)
-        : engine.createInitialState();
-      const finalResult = engine.resolve(gameState, theirState);
+        : engine.createInitialState(undefined, options);
+      const finalResult = engine.resolve(gameState, theirState, options);
       setResult(finalResult);
       setPhase("done");
       opponentInputRef.current = null;
       ownInputRef.current = null;
       playExperienceReveal();
       pulseHaptic("match");
-    }, isMultiplayer ? 200 : 800);
+    }, isMultiplayer ? 200 : aiLevel ? 1200 - aiLevel * 200 : 800);
     return () => clearTimeout(timer);
   }, [phase, engine, gameState, isMultiplayer]);
 

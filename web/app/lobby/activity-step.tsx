@@ -73,8 +73,7 @@ export function ActivityStep({ activity, onSelect }: Props) {
       </div>
 
       <p className="activity-note">
-        There is no correct answer. It simply helps two similar signals find
-        each other.
+        Your choice helps find someone who picked the same door.
       </p>
     </section>
   );

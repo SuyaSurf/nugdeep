@@ -1,5 +1,5 @@
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080";
-const WS_BASE = process.env.NEXT_PUBLIC_WS_URL ?? "ws://localhost:8080/ws";
+const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "";
+const WS_BASE = process.env.NEXT_PUBLIC_WS_URL ?? "";
 
 export async function apiFetch(path: string, init?: RequestInit & { token?: string | null }) {
   const headers: Record<string, string> = {

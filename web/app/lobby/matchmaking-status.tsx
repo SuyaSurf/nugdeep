@@ -20,6 +20,7 @@ export function MatchmakingStatus({
 }: Props) {
   const [phase, setPhase] = useState<"listening" | "connecting">("listening");
   const [seconds, setSeconds] = useState(30);
+  const [sweep, setSweep] = useState(0);
 
   useEffect(() => {
     const listenTimer = window.setTimeout(() => setPhase("connecting"), 3000);
@@ -41,6 +42,13 @@ export function MatchmakingStatus({
     return () => window.clearInterval(timer);
   }, [phase, onTimeout]);
 
+  useEffect(() => {
+    const sweepTimer = window.setInterval(() => {
+      setSweep((prev) => (prev + 5) % 100);
+    }, 80);
+    return () => window.clearInterval(sweepTimer);
+  }, []);
+
   return (
     <section className="matching-stage">
       <button
@@ -59,6 +67,10 @@ export function MatchmakingStatus({
         <span className="matching-radar__self" />
         <span className="matching-radar__other" />
         <span className="matching-radar__line" />
+        <span
+          className="matching-radar__sweep"
+          style={{ "--sweep-angle": `${sweep}deg` } as React.CSSProperties}
+        />
       </div>
 
       <p className="lobby-kicker">The building is listening</p>
@@ -77,4 +89,3 @@ export function MatchmakingStatus({
     </section>
   );
 }
-

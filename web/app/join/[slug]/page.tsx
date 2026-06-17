@@ -1,0 +1,115 @@
+"use client";
+
+export const dynamic = "force-dynamic";
+
+import { useEffect, useState } from "react";
+import { useParams } from "next/navigation";
+import { useAuth } from "@clerk/nextjs";
+import { apiFetch } from "@/lib/api";
+import GameBoard from "@/components/GameBoard";
+import AuthProvider from "@/components/AuthProvider";
+
+function JoinContent() {
+  const params = useParams();
+  const slug = params.slug as string;
+  const { getToken } = useAuth();
+  const [preview, setPreview] = useState<{ name: string; hint: string } | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [playing, setPlaying] = useState(false);
+  const [session, setSession] = useState<any>(null);
+
+  useEffect(() => {
+    async function fetchPreview() {
+      try {
+        const data = await apiFetch(`/api/v1/communities/${slug}/preview`);
+        setPreview(data);
+      } catch (e: any) {
+        setError(e.message || "Community not found");
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchPreview();
+  }, [slug]);
+
+  async function startGame() {
+    setLoading(true);
+    try {
+      const token = await getToken();
+      const comm = await apiFetch(`/api/v1/communities/${slug}`, { token });
+      const res = await apiFetch("/api/v1/game/start", {
+        token,
+        method: "POST",
+        body: JSON.stringify({
+          puzzle_id: comm.puzzle_id,
+          context: "community",
+          context_id: comm.id,
+        }),
+      });
+      setSession(res);
+      setPlaying(true);
+    } catch (e: any) {
+      setError(e.message || "Failed to start");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  if (loading && !playing) {
+    return (
+      <main className="flex items-center justify-center min-h-screen">
+        <p className="text-slate-400">Loading...</p>
+      </main>
+    );
+  }
+
+  if (error) {
+    return (
+      <main className="flex items-center justify-center min-h-screen px-6">
+        <p className="text-red-400">{error}</p>
+      </main>
+    );
+  }
+
+  if (playing && session) {
+    return (
+      <main className="flex flex-col items-center justify-center min-h-screen px-6 py-12">
+        <GameBoard
+          sessionId={session.session_id}
+          initialWord={session.word}
+          initialCategories={session.categories}
+          target={session.target}
+          deadline={new Date(session.deadline)}
+        />
+      </main>
+    );
+  }
+
+  return (
+    <main className="flex flex-col items-center justify-center min-h-screen px-6 py-12 text-center">
+      {preview && (
+        <>
+          <h1 className="text-3xl font-bold mb-2">{preview.name}</h1>
+          {preview.hint && (
+            <p className="text-slate-400 mb-8">{preview.hint}</p>
+          )}
+          <button
+            onClick={startGame}
+            className="px-8 py-3 rounded-lg bg-rose-600 text-white font-medium hover:bg-rose-500 transition"
+          >
+            Play to Unlock
+          </button>
+        </>
+      )}
+    </main>
+  );
+}
+
+export default function JoinPage() {
+  return (
+    <AuthProvider>
+      <JoinContent />
+    </AuthProvider>
+  );
+}

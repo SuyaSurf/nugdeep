@@ -1,0 +1,2 @@
+DROP TABLE IF EXISTS dates;
+DROP TYPE IF EXISTS date_state;

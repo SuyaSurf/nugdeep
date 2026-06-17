@@ -25,10 +25,10 @@ export function IntentStep({ onSelect }: Props) {
     <section className="lobby-step lobby-step--intent">
       <header className="lobby-step__header">
         <p className="lobby-kicker">The first door</p>
-        <h1>Why did you come tonight?</h1>
+        <h1>What are you looking for?</h1>
         <p>
-          No profile parade. No endless swiping. Choose the kind of encounter
-          you are open to, and the building does the rest.
+          Choose the kind of encounter you are open to. The building
+          does the rest.
         </p>
       </header>
 

@@ -30,10 +30,10 @@ export function MatchedScreen({
       </div>
 
       <p className="lobby-kicker">Frequency locked</p>
-      <h1>Another signal answered.</h1>
+      <h1>Someone matched on your frequency.</h1>
       <p>
-        You and <strong>{opponent || "an anonymous player"}</strong> chose the
-        same way into <strong>{gameName}</strong>.
+        <strong>{opponent || "Someone"}</strong> chose the same way into{" "}
+        <strong>{gameName}</strong>.
       </p>
 
       <button

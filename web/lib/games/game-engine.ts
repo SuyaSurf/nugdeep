@@ -13,6 +13,10 @@ export interface GameResult {
   summary: string;
 }
 
+export interface GameOptions {
+  aiDifficulty?: number;
+}
+
 export interface GameState {
   round: GameRound;
   status: "waiting" | "playing" | "resolved";
@@ -27,9 +31,9 @@ export interface GameEngine {
   maxRounds: number;
   roundTime: number;
 
-  createInitialState: (seed?: string) => GameState;
+  createInitialState: (seed?: string, options?: GameOptions) => GameState;
   processInput: (state: GameState, input: unknown) => GameState;
-  resolve: (myState: GameState, theirState: GameState) => GameResult;
+  resolve: (myState: GameState, theirState: GameState, options?: GameOptions) => GameResult;
 
   Renderer: React.ComponentType<{
     state: GameState;

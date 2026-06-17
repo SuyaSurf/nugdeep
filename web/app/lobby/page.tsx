@@ -90,6 +90,7 @@ function LobbyExperience({
   const [game, setGame] = useState("");
   const [matchId, setMatchId] = useState("");
   const [opponent, setOpponent] = useState("Signal 27");
+  const [aiLevel, setAiLevel] = useState<number | undefined>(undefined);
   const [location, setLocation] = useState("");
   const [gameResult, setGameResult] = useState<{ myScore: number; theirScore: number } | null>(null);
 
@@ -210,10 +211,14 @@ function LobbyExperience({
     if (handoff === "results") setPhase("results");
   };
 
-  const playAI = useCallback(async () => {
+  const playAI = useCallback(async (characterId: string) => {
+    const char = (await import("@/lib/ai-characters")).getAICharacter(characterId);
+    const aiName = char?.name ?? "AI";
+    const aiLevel = char?.level ?? 2;
     if (demo) {
       setMatchId(`ai_preview_${dayKey}`);
-      setOpponent("AI");
+      setOpponent(aiName);
+      setAiLevel(aiLevel);
       setPhase("matched");
       return;
     }
@@ -221,11 +226,13 @@ function LobbyExperience({
       const token = await tokenProvider?.();
       const resp = await startAIGame(token);
       setMatchId(resp.match_id);
-      setOpponent(resp.opponent);
+      setOpponent(aiName);
+      setAiLevel(aiLevel);
       setPhase("matched");
     } catch {
       setMatchId(`ai_fallback_${dayKey}`);
-      setOpponent("AI");
+      setOpponent(aiName);
+      setAiLevel(aiLevel);
       setPhase("matched");
     }
   }, [demo, dayKey, tokenProvider]);
@@ -266,8 +273,8 @@ function LobbyExperience({
             )}
             <span>
               {phase === "queued" || phase === "matched"
-                ? "Pairing chamber"
-                : "Lobby walk"}
+                ? "The pairing chamber"
+                : phase === "playing" ? "The game room" : "The lobby"}
             </span>
           </div>
 
@@ -308,6 +315,7 @@ function LobbyExperience({
           <GameShell
             engine={getEngineOrDefault(game)}
             matchId={matchId || undefined}
+            aiLevel={aiLevel}
             onComplete={(result) => finishGame(result)}
           />
         )}
@@ -336,10 +344,11 @@ function LobbyExperience({
           <section className="result-stage">
             <span className="result-stage__score">{gameResult?.myScore ?? 0}:{gameResult?.theirScore ?? 0}</span>
             <p className="lobby-kicker">The clean exit</p>
-            <h1>Good game. Nothing owed.</h1>
+            <h1>Game over.</h1>
             <p>
-              The score stays. Identities do not. You can listen for another
-              opponent or step back outside.
+              You scored <strong>{gameResult?.myScore ?? 0}</strong> to{" "}
+              <strong>{gameResult?.theirScore ?? 0}</strong> against{" "}
+              <strong>{opponent}</strong>. Play again or head back.
             </p>
             <button type="button" className="lobby-primary-action" onClick={reset}>
               Return to the lobby
@@ -353,7 +362,7 @@ function LobbyExperience({
               else setPhase("activity");
             }}
             onChange={() => setPhase("game")}
-            onPlayAI={playAI}
+            onPlayAI={(charId) => playAI(charId)}
           />
         )}
       </div>
