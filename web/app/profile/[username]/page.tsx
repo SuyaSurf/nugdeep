@@ -74,7 +74,7 @@ function ProfileContent() {
 
         {profile.categories && profile.categories.length > 0 && (
           <div>
-            <h2 className="mb-2 text-sm font-semibold text-slate-400">Categories</h2>
+            <h2 className="mb-2 text-sm font-semibold text-slate-400">Interests</h2>
             <div className="flex flex-wrap gap-2">
               {profile.categories.map((cat: string) => (
                 <span

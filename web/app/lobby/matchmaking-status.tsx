@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { X } from "lucide-react";
+import { useExperienceEventStore } from "@/lib/experience/event-store";
 
 interface Props {
   intentLabel: string;
@@ -21,6 +22,11 @@ export function MatchmakingStatus({
   const [phase, setPhase] = useState<"listening" | "connecting">("listening");
   const [seconds, setSeconds] = useState(30);
   const [sweep, setSweep] = useState(0);
+  const emit = useExperienceEventStore((s) => s.emit);
+
+  useEffect(() => {
+    emit({ type: "queue_searching", payload: { intent: intentLabel, game: gameName, choice: choiceLabel } });
+  }, []);
 
   useEffect(() => {
     const listenTimer = window.setTimeout(() => setPhase("connecting"), 3000);
@@ -73,11 +79,10 @@ export function MatchmakingStatus({
         />
       </div>
 
-      <p className="lobby-kicker">The building is listening</p>
-      <h1>Listening for someone on your frequency.</h1>
+      <p className="lobby-kicker">Finding a player</p>
+      <h1>Looking for someone who chose the same.</h1>
       <p className="matching-stage__copy">
-        Matching {intentLabel.toLowerCase()}, <strong>{gameName}</strong>, and
-        the choice <strong>{choiceLabel}</strong>.
+        Matching: {intentLabel} · <strong>{gameName}</strong> · <strong>{choiceLabel}</strong>
       </p>
 
       {phase === "connecting" && (

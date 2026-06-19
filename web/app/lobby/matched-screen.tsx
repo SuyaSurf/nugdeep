@@ -1,10 +1,12 @@
 "use client";
 
 import { ArrowRight } from "lucide-react";
+import { useEffect } from "react";
 import {
   playExperienceReveal,
   pulseHaptic,
 } from "@/components/experience/experience-audio";
+import { useExperienceEventStore } from "@/lib/experience/event-store";
 
 interface Props {
   opponent: string;
@@ -17,6 +19,12 @@ export function MatchedScreen({
   gameName,
   onGameStart,
 }: Props) {
+  const emit = useExperienceEventStore((s) => s.emit);
+
+  useEffect(() => {
+    emit({ type: "match_found", payload: { gameId: "", opponent, game: gameName } });
+  }, []);
+
   return (
     <section className="matched-stage">
       <div className="matched-stage__signals" aria-hidden="true">
@@ -29,11 +37,10 @@ export function MatchedScreen({
         </span>
       </div>
 
-      <p className="lobby-kicker">Frequency locked</p>
-      <h1>Someone matched on your frequency.</h1>
+      <p className="lobby-kicker">Player found</p>
+      <h1>{opponent || "Someone"} is ready.</h1>
       <p>
-        <strong>{opponent || "Someone"}</strong> chose the same way into{" "}
-        <strong>{gameName}</strong>.
+        Same picks. Same game.
       </p>
 
       <button
@@ -42,13 +49,13 @@ export function MatchedScreen({
         onClick={() => {
           playExperienceReveal();
           pulseHaptic("match");
+          emit({ type: "game_start", payload: { gameId: "", game: gameName } });
           onGameStart();
         }}
       >
-        Enter the game
+        Start game
         <ArrowRight size={18} aria-hidden="true" />
       </button>
     </section>
   );
 }
-

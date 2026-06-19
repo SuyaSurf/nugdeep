@@ -9,6 +9,7 @@ import {
   playExperienceSelect,
   pulseHaptic,
 } from "@/components/experience/experience-audio";
+import { ExpeditionCard } from "@/components/ExpeditionCard";
 
 interface Props {
   onSelect: (intent: LobbyIntent) => void;
@@ -24,11 +25,10 @@ export function IntentStep({ onSelect }: Props) {
   return (
     <section className="lobby-step lobby-step--intent">
       <header className="lobby-step__header">
-        <p className="lobby-kicker">The first door</p>
-        <h1>What are you looking for?</h1>
+        <p className="lobby-kicker">Choose your match</p>
+        <h1>What are you here for?</h1>
         <p>
-          Choose the kind of encounter you are open to. The building
-          does the rest.
+          Pick what you want. We&apos;ll find someone who chose the same.
         </p>
       </header>
 
@@ -58,6 +58,10 @@ export function IntentStep({ onSelect }: Props) {
             </button>
           );
         })}
+      </div>
+
+      <div className="mt-8">
+        <ExpeditionCard />
       </div>
     </section>
   );

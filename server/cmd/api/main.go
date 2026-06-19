@@ -13,16 +13,17 @@ import (
 	"strings"
 	"time"
 
-	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/chi/v5/middleware"
-	"github.com/go-chi/cors"
 	"games.bammby.com/server/internal/api"
 	"games.bammby.com/server/internal/auth"
 	"games.bammby.com/server/internal/cache"
+	"games.bammby.com/server/internal/expedition"
 	"games.bammby.com/server/internal/livekit"
 	"games.bammby.com/server/internal/ratelimit"
 	"games.bammby.com/server/internal/store"
 	"games.bammby.com/server/internal/ws"
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
+	"github.com/go-chi/cors"
 )
 
 func main() {
@@ -40,6 +41,9 @@ func main() {
 	defer pool.Close()
 
 	repo := store.NewPgStore(pool)
+	if err := repo.SeedExpeditionDestinations(ctx, expedition.StoreSeedDestinations()); err != nil {
+		log.Fatalf("seed expeditions: %v", err)
+	}
 	redisCache := cache.NewCache()
 	if err := redisCache.Ping(ctx); err != nil {
 		log.Printf("redis: %v (continuing without cache)", err)

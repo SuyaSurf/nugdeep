@@ -8,8 +8,8 @@ export const dynamic = "force-dynamic";
 const clerkKey = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
 
 export const metadata: Metadata = {
-  title: "Bammby Games — play to connect",
-  description: "Quick 1v1 games that unlock conversations and connections.",
+  title: "Bammby — Play. Match. Decide what happens next.",
+  description: "Pick a game, face a real player, then rematch, chat, or leave.",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,

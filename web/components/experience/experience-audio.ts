@@ -1,5 +1,15 @@
 "use client";
 
+import {
+  enableMixer,
+  disableMixer,
+  isMixerEnabled,
+  playSfxSelect,
+  playSfxEnter,
+  playSfxReveal,
+  pulseHaptic as mixerPulseHaptic,
+} from "@/lib/experience/experience-mixer";
+
 let audioContext: AudioContext | null = null;
 let ambientGain: GainNode | null = null;
 let ambientNodes: OscillatorNode[] = [];
@@ -67,6 +77,7 @@ export async function enableExperienceAudio(): Promise<boolean> {
   }
 
   localStorage.setItem("bammby-sound", "on");
+  await enableMixer();
   tone(392, 0.45, 0.035);
   tone(587, 0.55, 0.025, 0.09);
   return true;
@@ -75,6 +86,7 @@ export async function enableExperienceAudio(): Promise<boolean> {
 export function disableExperienceAudio() {
   enabled = false;
   localStorage.setItem("bammby-sound", "off");
+  disableMixer();
   const context = audioContext;
   if (!context || !ambientGain) return;
 
@@ -100,33 +112,19 @@ export function isExperienceAudioEnabled() {
 }
 
 export function playExperienceSelect() {
-  tone(240, 0.08, 0.035, 0, "triangle");
-  tone(480, 0.12, 0.02, 0.035);
+  playSfxSelect();
 }
 
 export function playExperienceEnter() {
-  tone(110, 0.5, 0.05, 0, "sine");
-  tone(330, 0.6, 0.035, 0.08, "triangle");
-  tone(660, 0.8, 0.025, 0.17);
+  playSfxEnter();
 }
 
 export function playExperienceReveal() {
-  tone(294, 0.5, 0.035);
-  tone(440, 0.5, 0.03, 0.1);
-  tone(740, 0.8, 0.025, 0.22);
+  playSfxReveal();
 }
 
 export function pulseHaptic(
   pattern: "select" | "enter" | "match" = "select",
 ) {
-  if (typeof navigator === "undefined" || !navigator.vibrate) return;
-  const patterns = {
-    select: 8,
-    enter: [10, 30, 18],
-    match: [18, 40, 22, 40, 32],
-  } as const;
-  const vibration = patterns[pattern];
-  navigator.vibrate(
-    typeof vibration === "number" ? vibration : [...vibration],
-  );
+  mixerPulseHaptic(pattern);
 }

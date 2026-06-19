@@ -173,6 +173,51 @@ type Referral struct {
 	CreatedAt     time.Time `json:"created_at"`
 }
 
+// ExpeditionDestination is a country content pack for daily expeditions.
+type ExpeditionDestination struct {
+	CountryCode     string    `json:"country_code"`
+	CountryName     string    `json:"country_name"`
+	Region          string    `json:"region"`
+	FlagEmoji       string    `json:"flag_emoji"`
+	DailyFact       string    `json:"daily_fact"`
+	DeepDiveFacts   []byte    `json:"deep_dive_facts"`
+	QuizCulture     []byte    `json:"quiz_culture"`
+	QuizLanguage    []byte    `json:"quiz_language"`
+	ChallengeType   string    `json:"challenge_type"`
+	ChallengeParams []byte    `json:"challenge_params"`
+	ScoreThreshold  int       `json:"score_threshold"`
+	Active          bool      `json:"active"`
+	CreatedAt       time.Time `json:"created_at"`
+}
+
+// ExpeditionAtlasEntry tracks a user's unlocked countries.
+type ExpeditionAtlasEntry struct {
+	UserID             string    `json:"user_id"`
+	CountryCode        string    `json:"country_code"`
+	DiscoveredDate     time.Time `json:"discovered_date"`
+	ExpeditionScore    int       `json:"expedition_score"`
+	QuizCultureScore   int       `json:"quiz_culture_score"`
+	QuizLanguageScore  int       `json:"quiz_language_score"`
+	TotalScore         int       `json:"total_score"`
+	StreakShieldEarned bool      `json:"streak_shield_earned"`
+}
+
+// ExpeditionStreak tracks a user's expedition streak.
+type ExpeditionStreak struct {
+	UserID         string     `json:"user_id"`
+	CurrentStreak  int        `json:"current_streak"`
+	LongestStreak  int        `json:"longest_streak"`
+	LastPlayedDate *time.Time `json:"last_played_date"`
+	StreakShields  int        `json:"streak_shields"`
+	ActiveRewards  []byte     `json:"active_rewards"`
+}
+
+type ExpeditionLeaderboardEntry struct {
+	UserID      string `json:"user_id"`
+	CountryCode string `json:"country_code"`
+	TotalScore  int    `json:"total_score"`
+}
+
 // Repository is the unified data interface.
 type Repository interface {
 	// Categories
@@ -273,6 +318,18 @@ type Repository interface {
 
 	// Analytics
 	CreateAnalyticsEvent(ctx context.Context, userID string, eventType string, properties map[string]any) error
+
+	// Expeditions
+	SeedExpeditionDestinations(ctx context.Context, destinations []ExpeditionDestination) error
+	ListExpeditionDestinations(ctx context.Context) ([]ExpeditionDestination, error)
+	GetExpeditionDestination(ctx context.Context, countryCode string) (*ExpeditionDestination, error)
+	GetExpeditionAtlasEntry(ctx context.Context, userID, countryCode string) (*ExpeditionAtlasEntry, error)
+	UpsertExpeditionAtlasEntry(ctx context.Context, entry ExpeditionAtlasEntry) error
+	ListExpeditionAtlas(ctx context.Context, userID string) ([]ExpeditionAtlasEntry, error)
+	GetExpeditionStreak(ctx context.Context, userID string) (*ExpeditionStreak, error)
+	UpsertExpeditionStreak(ctx context.Context, streak ExpeditionStreak) error
+	UpsertExpeditionDailyScore(ctx context.Context, date time.Time, userID, countryCode string, expeditionScore, quizScore, totalScore int) error
+	ListExpeditionDailyScores(ctx context.Context, date time.Time, limit int) ([]ExpeditionLeaderboardEntry, error)
 }
 
 // CommunityFilter filters community lists.

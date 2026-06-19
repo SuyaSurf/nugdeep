@@ -8,6 +8,7 @@ import {
   playExperienceSelect,
   pulseHaptic,
 } from "@/components/experience/experience-audio";
+import { useExperienceEventStore } from "@/lib/experience/event-store";
 import { getGame, getReadyGames } from "@/lib/games/registry";
 import { getEngineOrDefault } from "@/lib/games/engines";
 import type { GameResult } from "@/lib/games/game-engine";
@@ -94,6 +95,7 @@ function LobbyExperience({
   const [location, setLocation] = useState("");
   const [gameResult, setGameResult] = useState<{ myScore: number; theirScore: number } | null>(null);
 
+  const emit = useExperienceEventStore((s) => s.emit);
   const gameProfile = getGame(game);
   const intentProfile = getIntentOptions().find((item) => item.id === intent);
   const choiceProfile = activity.options.find((item) => item.value === choice);
@@ -198,6 +200,17 @@ function LobbyExperience({
     if (result) {
       setGameResult({ myScore: result.myScore, theirScore: result.theirScore });
 
+      emit({
+        type: "game_over",
+        payload: {
+          gameId: matchId,
+          outcome: result.winner === "me" ? "win" : result.winner === "them" ? "lose" : "draw",
+          myScore: result.myScore,
+          theirScore: result.theirScore,
+          opponent,
+        },
+      });
+
       if (!demo && matchId && userId && !matchId.startsWith("ai_") && !matchId.startsWith("preview_")) {
         const winnerId = result.winner === "me" ? userId : result.winner === "them" ? opponent : userId;
         tokenProvider?.().then((token) => {
@@ -257,7 +270,7 @@ function LobbyExperience({
 
   return (
     <ExperienceShell
-      label="Inside the Bammby game center"
+      label="Bammby lobby"
       compactPresence={phase !== "intent"}
       className="lobby-experience"
     >
@@ -273,8 +286,8 @@ function LobbyExperience({
             )}
             <span>
               {phase === "queued" || phase === "matched"
-                ? "The pairing chamber"
-                : phase === "playing" ? "The game room" : "The lobby"}
+                ? "Finding a match"
+                : phase === "playing" ? "In game" : "Lobby"}
             </span>
           </div>
 
@@ -343,15 +356,14 @@ function LobbyExperience({
         {phase === "results" && (
           <section className="result-stage">
             <span className="result-stage__score">{gameResult?.myScore ?? 0}:{gameResult?.theirScore ?? 0}</span>
-            <p className="lobby-kicker">The clean exit</p>
-            <h1>Game over.</h1>
+            <p className="lobby-kicker">Match over</p>
+            <h1>Final score</h1>
             <p>
-              You scored <strong>{gameResult?.myScore ?? 0}</strong> to{" "}
-              <strong>{gameResult?.theirScore ?? 0}</strong> against{" "}
-              <strong>{opponent}</strong>. Play again or head back.
+              <strong>{gameResult?.myScore ?? 0}</strong>–<strong>{gameResult?.theirScore ?? 0}</strong> vs{" "}
+              <strong>{opponent}</strong>. Back to lobby or play again.
             </p>
             <button type="button" className="lobby-primary-action" onClick={reset}>
-              Return to the lobby
+              Back to lobby
             </button>
           </section>
         )}

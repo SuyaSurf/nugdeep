@@ -1,12 +1,13 @@
 "use client";
 
 import { ArrowLeft, RotateCcw } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { pickAICharacters, getAICharacter, type AICharacter } from "@/lib/ai-characters";
 import {
   playExperienceSelect,
   pulseHaptic,
 } from "@/components/experience/experience-audio";
+import { useExperienceEventStore } from "@/lib/experience/event-store";
 
 interface Props {
   onRetry: () => void;
@@ -17,25 +18,32 @@ interface Props {
 export function NoMatch({ onRetry, onChange, onPlayAI }: Props) {
   const [characters] = useState(() => pickAICharacters(2, `${Date.now()}`));
   const [picked, setPicked] = useState<string | null>(null);
+  const emit = useExperienceEventStore((s) => s.emit);
+
+  useEffect(() => {
+    emit({ type: "no_match", payload: { intent: "", game: "" } });
+  }, []);
 
   const handlePick = (id: string) => {
     playExperienceSelect();
     pulseHaptic("select");
+    const char = getAICharacter(id);
     setPicked(id);
+    emit({ type: "ai_selected", payload: { characterId: id, characterName: char?.name ?? "AI" } });
     onPlayAI(id);
   };
 
   return (
     <section className="empty-stage">
       <span className="empty-stage__signal" aria-hidden="true" />
-      <p className="lobby-kicker">No answer yet</p>
-      <h1>The room went quiet.</h1>
+      <p className="lobby-kicker">No match found</p>
+      <h1>No one picked the same combination.</h1>
       <p>
-        No one matched on those choices. Try the same combination again.
+        Try again or change your game.
       </p>
 
       <div className="empty-stage__agents">
-        <p className="empty-stage__agents-label">Play with an agent from the building:</p>
+        <p className="empty-stage__agents-label">Play against the house:</p>
         <div className="empty-stage__agents-grid">
           {characters.map((char) => (
             <button
@@ -57,11 +65,11 @@ export function NoMatch({ onRetry, onChange, onPlayAI }: Props) {
       <div className="empty-stage__actions">
         <button type="button" className="lobby-primary-action" onClick={onRetry}>
           <RotateCcw size={17} />
-          Listen again
+          Try again
         </button>
         <button type="button" className="lobby-secondary-action" onClick={onChange}>
           <ArrowLeft size={17} />
-          Change the route
+          Change game
         </button>
       </div>
     </section>

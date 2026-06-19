@@ -6,11 +6,11 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/go-chi/chi/v5"
 	"games.bammby.com/server/internal/audio"
 	"games.bammby.com/server/internal/auth"
 	"games.bammby.com/server/internal/cache"
 	"games.bammby.com/server/internal/community"
+	"games.bammby.com/server/internal/expedition"
 	"games.bammby.com/server/internal/game"
 	"games.bammby.com/server/internal/livekit"
 	"games.bammby.com/server/internal/lobby"
@@ -19,41 +19,45 @@ import (
 	"games.bammby.com/server/internal/push"
 	"games.bammby.com/server/internal/store"
 	"games.bammby.com/server/internal/ws"
+	"github.com/go-chi/chi/v5"
 )
 
 // Handler holds all HTTP handlers.
 type Handler struct {
-	store       store.Repository
-	commSvc     *community.Service
-	gameMgr     *game.Manager
-	wordCardMgr *game.WordCardManager
-	match       *matchmaking.Service
-	livekit     *livekit.Service
-	mod         *moderation.Service
-	push        *push.Service
-	audioSvc    *audio.Service
-	cache       *cache.Cache
-	hub         *ws.Hub
-	lobbySvc    *lobby.Service
-	lobbyH      *lobby.Handler
+	store         store.Repository
+	commSvc       *community.Service
+	gameMgr       *game.Manager
+	wordCardMgr   *game.WordCardManager
+	match         *matchmaking.Service
+	livekit       *livekit.Service
+	mod           *moderation.Service
+	push          *push.Service
+	audioSvc      *audio.Service
+	cache         *cache.Cache
+	hub           *ws.Hub
+	lobbySvc      *lobby.Service
+	lobbyH        *lobby.Handler
+	expeditionSvc *expedition.Service
 }
 
 func NewHandler(s store.Repository, lk *livekit.Service, c *cache.Cache, hub *ws.Hub) *Handler {
 	lobbySvc := lobby.NewService(c)
+	expeditionSvc := expedition.NewService(s, c)
 	return &Handler{
-		store:       s,
-		commSvc:     community.NewService(s),
-		gameMgr:     game.NewManager(),
-		wordCardMgr: game.NewWordCardManager(),
-		match:       matchmaking.NewService(c, s, hub),
-		livekit:     lk,
-		mod:         moderation.NewService(),
-		push:        push.NewService(c),
-		audioSvc:    audio.NewService(c),
-		cache:       c,
-		hub:         hub,
-		lobbySvc:    lobbySvc,
-		lobbyH:      lobby.NewHandler(lobbySvc, hub),
+		store:         s,
+		commSvc:       community.NewService(s),
+		gameMgr:       game.NewManager(),
+		wordCardMgr:   game.NewWordCardManager(),
+		match:         matchmaking.NewService(c, s, hub),
+		livekit:       lk,
+		mod:           moderation.NewService(),
+		push:          push.NewService(c),
+		audioSvc:      audio.NewService(c),
+		cache:         c,
+		hub:           hub,
+		lobbySvc:      lobbySvc,
+		lobbyH:        lobby.NewHandler(lobbySvc, hub),
+		expeditionSvc: expeditionSvc,
 	}
 }
 
@@ -243,6 +247,14 @@ func (h *Handler) Routes(r chi.Router) {
 			r.Post("/reports", h.ReportUser)
 			r.Post("/blocks", h.BlockUser)
 			r.Post("/push/token", h.RegisterPushToken)
+
+			// Expedition endpoints
+			r.Get("/expedition/today", h.ExpeditionToday)
+			r.Post("/expedition/complete", h.ExpeditionComplete)
+			r.Post("/expedition/quiz", h.ExpeditionQuiz)
+			r.Get("/atlas", h.ExpeditionAtlas)
+			r.Get("/atlas/{countryCode}", h.ExpeditionCountry)
+			r.Get("/expedition/leaderboard/{date}", h.ExpeditionLeaderboard)
 
 			h.lobbyH.Routes(r)
 		})

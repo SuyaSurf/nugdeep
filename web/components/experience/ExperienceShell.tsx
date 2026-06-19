@@ -9,6 +9,7 @@ import {
   pulseHaptic,
 } from "./experience-audio";
 import { PresenceField } from "./PresenceField";
+import { ExperienceEventDirector } from "./ExperienceEventDirector";
 
 interface ExperienceShellProps {
   children: React.ReactNode;
@@ -25,9 +26,18 @@ export function ExperienceShell({
 }: ExperienceShellProps) {
   const shellRef = useRef<HTMLElement>(null);
   const [soundOn, setSoundOn] = useState(false);
+  const [reducedMotion, setReducedMotion] = useState(false);
 
   useEffect(() => {
     setSoundOn(isExperienceAudioEnabled());
+  }, []);
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+    setReducedMotion(mediaQuery.matches);
+    const handler = (event: MediaQueryListEvent) => setReducedMotion(event.matches);
+    mediaQuery.addEventListener("change", handler);
+    return () => mediaQuery.removeEventListener("change", handler);
   }, []);
 
   const moveLight = useCallback((clientX: number, clientY: number) => {
@@ -60,6 +70,10 @@ export function ExperienceShell({
       onPointerMove={(event) => moveLight(event.clientX, event.clientY)}
       onPointerDown={(event) => moveLight(event.clientX, event.clientY)}
     >
+      <ExperienceEventDirector
+        soundEnabled={soundOn}
+        reducedMotion={reducedMotion}
+      />
       <div className="experience-world" aria-hidden="true">
         <div className="experience-world__sky" />
         <div className="experience-world__moon" />
@@ -92,4 +106,3 @@ export function ExperienceShell({
     </main>
   );
 }
-

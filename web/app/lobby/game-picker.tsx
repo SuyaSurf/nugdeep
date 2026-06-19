@@ -26,10 +26,10 @@ export function GamePicker({ games, onSelect }: Props) {
   return (
     <section className="lobby-step">
       <header className="lobby-step__header">
-        <p className="lobby-kicker">The daily shelf</p>
-        <h1>Tonight&apos;s games</h1>
+        <p className="lobby-kicker">Tonight&apos;s lineup</p>
+        <h1>Pick a game</h1>
         <p>
-          One game per category. Everyone sees the same deal until midnight.
+          One game per category. The board resets at midnight.
         </p>
       </header>
 

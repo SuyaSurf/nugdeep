@@ -31,8 +31,8 @@ const INTENTS: readonly IntentOption[] = [
     number: "01",
     label: "Speed date",
     shortLabel: "Date",
-    description: "Play first. If the signal holds, choose a world to meet inside.",
-    promise: "Game, location reveal, immersive room",
+    description: "Play a quick round. If it clicks, enter a private room.",
+    promise: "Game, then a room to meet",
     accent: "#ff9368",
   },
   {
@@ -40,8 +40,8 @@ const INTENTS: readonly IntentOption[] = [
     number: "02",
     label: "Make a friend",
     shortLabel: "Friend",
-    description: "Break the ice through play, then stay for a low-pressure conversation.",
-    promise: "Game, text chat, optional voice",
+    description: "Play first, talk after. No forced openers.",
+    promise: "Game, then text or voice chat",
     accent: "#b8ff72",
   },
   {
@@ -49,8 +49,8 @@ const INTENTS: readonly IntentOption[] = [
     number: "03",
     label: "Just play",
     shortLabel: "Play",
-    description: "One sharp match with another anonymous player. Nothing owed after.",
-    promise: "Game, result, rematch or leave",
+    description: "One match. One winner. Then leave or rematch.",
+    promise: "Score, rematch, or leave",
     accent: "#8e9dff",
   },
 ] as const;

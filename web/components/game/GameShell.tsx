@@ -6,6 +6,7 @@ import { useLobbyStore } from "@/lib/stores/lobby-store";
 import { useWsStore } from "@/lib/stores/ws-store";
 import type { GameEngine, GameState, GameResult } from "@/lib/games/game-engine";
 import { playExperienceReveal, pulseHaptic } from "@/components/experience/experience-audio";
+import { useExperienceEventStore } from "@/lib/experience/event-store";
 
 interface GameShellProps {
   engine: GameEngine;
@@ -23,10 +24,13 @@ export function GameShell({ engine, onComplete, matchId, aiLevel }: GameShellPro
   const [round, setRound] = useState(1);
   const [phase, setPhase] = useState<"playing" | "resolving" | "done">("playing");
 
+  const emit = useExperienceEventStore((s) => s.emit);
+
   const timerRef = useRef<ReturnType<typeof setInterval> | undefined>(undefined);
   const opponentInputRef = useRef<unknown>(null);
   const ownInputRef = useRef<unknown>(null);
   const nonceRef = useRef(Math.random().toString(36).slice(2));
+  const prevScoreRef = useRef<{ my: number; their: number }>({ my: 0, their: 0 });
 
   const isMultiplayer = Boolean(matchId && !matchId.startsWith("ai_") && !matchId.startsWith("preview_"));
 
@@ -97,9 +101,33 @@ export function GameShell({ engine, onComplete, matchId, aiLevel }: GameShellPro
       ownInputRef.current = null;
       playExperienceReveal();
       pulseHaptic("match");
+
+      const winner = finalResult.winner === "me" ? "win" : finalResult.winner === "them" ? "lose" : "draw";
+      emit({
+        type: "round_resolved",
+        payload: {
+          gameId: matchId ?? "",
+          outcome: winner,
+          myScore: finalResult.myScore,
+          theirScore: finalResult.theirScore,
+          intensity: aiLevel ? aiLevel / 4 : 0.5,
+        },
+      });
+
+      if (finalResult.myScore !== prevScoreRef.current.my || finalResult.theirScore !== prevScoreRef.current.their) {
+        emit({
+          type: "score_changed",
+          payload: {
+            gameId: matchId ?? "",
+            myScore: finalResult.myScore,
+            theirScore: finalResult.theirScore,
+          },
+        });
+        prevScoreRef.current = { my: finalResult.myScore, their: finalResult.theirScore };
+      }
     }, isMultiplayer ? 200 : aiLevel ? 1200 - aiLevel * 200 : 800);
     return () => clearTimeout(timer);
-  }, [phase, engine, gameState, isMultiplayer]);
+  }, [phase, engine, gameState, isMultiplayer, aiLevel, matchId, emit]);
 
   const nextRound = useCallback(() => {
     if (round < engine.maxRounds) {

@@ -246,10 +246,10 @@ function DateContent() {
     return (
       <main className="flex min-h-screen flex-col items-center justify-center px-6 py-12">
         <div className="w-full max-w-lg rounded-2xl border border-slate-800 bg-slate-900/70 p-8 shadow-2xl">
-          <p className="mb-1 text-xs font-semibold uppercase tracking-[0.3em] text-rose-400">Speed Dating</p>
-          <h1 className="mb-2 text-2xl font-bold text-slate-50">Complete Your Profile</h1>
+          <p className="mb-1 text-xs font-semibold uppercase tracking-[0.3em] text-rose-400">Speed Date</p>
+          <h1 className="mb-2 text-2xl font-bold text-slate-50">Set up your profile</h1>
           <p className="mb-6 text-sm text-slate-400">
-            Fill in the following fields to join dating:
+            Required to join:
             {fieldsMissing.length > 0 && (
               <span className="mt-1 block text-amber-400">Missing: {fieldsMissing.join(", ")}</span>
             )}
@@ -315,7 +315,7 @@ function DateContent() {
 
             <button type="button" onClick={saveProfile} disabled={savingProfile}
               className="w-full rounded-lg bg-rose-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-rose-500 disabled:opacity-50">
-              {savingProfile ? "Saving..." : "Save Profile & Enable Dating"}
+              {savingProfile ? "Saving..." : "Save and join"}
             </button>
           </div>
 
@@ -328,25 +328,25 @@ function DateContent() {
   return (
     <main className="flex min-h-screen flex-col items-center justify-center px-6 py-12 text-center">
       <div className="max-w-md rounded-2xl border border-slate-800 bg-slate-900/70 p-8 shadow-2xl shadow-rose-950/20">
-        <p className="mb-3 text-xs font-semibold uppercase tracking-[0.3em] text-rose-400">Speed Dating</p>
-        <h1 className="mb-4 text-3xl font-bold tracking-tight text-slate-50">Find a Match</h1>
+        <p className="mb-3 text-xs font-semibold uppercase tracking-[0.3em] text-rose-400">Speed Date</p>
+        <h1 className="mb-4 text-3xl font-bold tracking-tight text-slate-50">Find a match</h1>
 
         {phase === "idle" && (
           <button type="button" onClick={joinQueue} className="inline-flex rounded-lg bg-rose-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-rose-500">
-            Join Queue
+            Join queue
           </button>
         )}
         {phase === "queued" && (
           <div className="space-y-4">
-            <p className="text-sm text-slate-400">Waiting in queue...</p>
+            <p className="text-sm text-slate-400">In queue...</p>
             <button type="button" onClick={leaveQueue} className="inline-flex rounded-lg bg-slate-800 px-5 py-3 text-sm font-semibold text-slate-200 transition hover:bg-slate-700">
-              Leave Queue
+              Leave queue
             </button>
           </div>
         )}
         {(phase === "matched" || phase === "playing") && (
           <div className="space-y-4">
-            <p className="text-sm text-slate-300">{phase === "playing" ? "Duel in progress!" : "Opponent found!"}</p>
+            <p className="text-sm text-slate-300">{phase === "playing" ? "Round in progress" : "Match found"}</p>
             {game && !game.done && (
               <div className="rounded-lg bg-slate-800/50 p-4 text-left">
                 <p className="text-sm text-slate-300">Word: <span className="font-semibold text-white">{game.word}</span></p>
@@ -376,10 +376,10 @@ function DateContent() {
         {(phase === "decided" || phase === "messaged") && (
           <div className="space-y-4">
             <p className="text-sm text-slate-300">
-              {winnerId ? "Duel finished. Chat below!" : "Duel finished."}
+              {winnerId ? "Round over. Chat unlocked." : "Round over."}
             </p>
             <div className="max-h-32 overflow-y-auto rounded-lg bg-slate-800/50 p-3 text-left">
-              {chatLog.length === 0 && <p className="text-xs text-slate-500 italic">No messages yet</p>}
+              {chatLog.length === 0 && <p className="text-xs text-slate-500 italic">No messages</p>}
               {chatLog.map((msg, i) => (
                 <p key={i} className="text-sm text-slate-300">{msg}</p>
               ))}

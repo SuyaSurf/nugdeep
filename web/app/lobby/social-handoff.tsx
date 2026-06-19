@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { Camera, Glasses, LogOut, Mic, Send, Volume2 } from "lucide-react";
 import type { LobbyIntent } from "@/lib/lobby-experience";
 import { playExperienceSelect, pulseHaptic } from "@/components/experience/experience-audio";
+import { useExperienceEventStore } from "@/lib/experience/event-store";
 import { useWsStore } from "@/lib/stores/ws-store";
 import { useLobbyStore } from "@/lib/stores/lobby-store";
 import { createChatMessage, isChatEvent, type ChatMessage } from "@/lib/chat";
@@ -35,28 +36,36 @@ export function SocialHandoff({
   const wsSubscribe = useWsStore((s) => s.subscribe);
   const wsSend = useWsStore((s) => s.send);
   const matchId = useLobbyStore((s) => s.match?.id);
+  const emit = useExperienceEventStore((s) => s.emit);
 
   const pendingSends = useRef(new Set<string>());
   const unmounted = useRef(false);
 
   useEffect(() => {
+    const handoffKind = intent === "speed_date" ? "location_picker" : intent === "make_friend" ? "friend_chat" : "results";
+    emit({ type: "chat_unlocked", payload: { gameId: matchId ?? "", opponent, kind: handoffKind } });
+  }, []);
+
+  useEffect(() => {
     const unsub = wsSubscribe("lobby", (msg) => {
       if (isChatEvent(msg)) {
-        if (pendingSends.current.has(msg.payload.body)) {
-          pendingSends.current.delete(msg.payload.body);
+        const body = msg.payload.body;
+        if (pendingSends.current.has(body)) {
+          pendingSends.current.delete(body);
           return;
         }
         setMessages((prev) => [
           ...prev,
-          createChatMessage(msg.payload.body, "them"),
+          createChatMessage(body, "them"),
         ]);
+        emit({ type: "message_received", payload: { gameId: matchId ?? "", sender: opponent, body } });
       }
     });
     return () => {
       unmounted.current = true;
       unsub();
     };
-  }, [wsSubscribe]);
+  }, [wsSubscribe, matchId, opponent, emit]);
 
   useEffect(() => {
     if (!matchId) return;

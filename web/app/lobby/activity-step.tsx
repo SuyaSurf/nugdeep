@@ -31,8 +31,8 @@ export function ActivityStep({ activity, onSelect }: Props) {
   return (
     <section className="lobby-step lobby-step--activity">
       <header className="lobby-step__header">
-        <p className="lobby-kicker">Tonight&apos;s ritual</p>
-        <h1>One small choice before the doors open.</h1>
+        <p className="lobby-kicker">Match filter</p>
+        <h1>Answer to find your match.</h1>
         <p>{activity.prompt}</p>
       </header>
 
@@ -73,7 +73,7 @@ export function ActivityStep({ activity, onSelect }: Props) {
       </div>
 
       <p className="activity-note">
-        Your choice helps find someone who picked the same door.
+        Same answer = better match chance.
       </p>
     </section>
   );
