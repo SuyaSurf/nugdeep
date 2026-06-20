@@ -1,8 +1,11 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
+import gsap from "gsap";
 import { Palette } from "lucide-react";
 import { playExperienceSelect, pulseHaptic } from "@/components/experience/experience-audio";
+import { ResultReveal } from "@/components/juice/ResultReveal";
+import { Confetti } from "@/components/juice/Confetti";
 import type { GameEngine, GameState, GameResult } from "./game-engine";
 
 interface PaletteState extends GameState {
@@ -69,23 +72,30 @@ function PaletteRenderer({
   }, [phase, guess, onInput]);
 
   const diff = guess !== null ? Math.abs(guess - state.targetPosition) : 0;
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (el) {
+      gsap.fromTo(el, { opacity: 0, y: 20, scale: 0.96 }, { opacity: 1, y: 0, scale: 1, duration: 0.4, ease: "power2.out" });
+    }
+  }, []);
 
   return (
-    <div className="game-chamber">
+    <div className="game-chamber" ref={containerRef}>
+      <Confetti active={!!result && result.winner === "me"} />
       <div className="game-chamber__artifact" aria-hidden="true">
         <span />
         <i />
         <Palette />
       </div>
       {result ? (
-        <>
-          <p className="lobby-kicker">{result.winner === "me" ? "Closer." : result.winner === "them" ? "They were closer." : "Same distance."}</p>
-          <h1>{result.summary}</h1>
-          <div className="game-chamber__players">
-            <span>You / off by {result.myScore.toFixed(0)}%</span>
-            <span>They / off by {result.theirScore.toFixed(0)}%</span>
-          </div>
-        </>
+        <ResultReveal
+          winner={result.winner}
+          myScore={Math.round(result.myScore)}
+          theirScore={Math.round(result.theirScore)}
+          summary={result.summary}
+        />
       ) : (
         <>
           <p className="lobby-kicker">{phase === "memorize" ? "Memorize this color" : guess !== null ? `You tapped at ${guess}%` : "Tap the color on the gradient"}</p>

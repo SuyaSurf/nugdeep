@@ -1,8 +1,12 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
+import gsap from "gsap";
 import { CircleStop, Timer, Hand } from "lucide-react";
 import { playExperienceSelect, pulseHaptic } from "@/components/experience/experience-audio";
+import { TimerRing } from "@/components/juice/TimerRing";
+import { ResultReveal } from "@/components/juice/ResultReveal";
+import { Confetti } from "@/components/juice/Confetti";
 import type { GameEngine, GameState, GameResult } from "./game-engine";
 
 interface TheButtonState extends GameState {
@@ -43,6 +47,14 @@ function TheButtonRenderer({
   const [stopped, setStopped] = useState(false);
   const raf = useRef<number>(0);
   const startTime = useRef<number>(0);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (el) {
+      gsap.fromTo(el, { opacity: 0, y: 20, scale: 0.96 }, { opacity: 1, y: 0, scale: 1, duration: 0.4, ease: "power2.out" });
+    }
+  }, []);
 
   useEffect(() => {
     if (state.status !== "playing" || stopped) return;
@@ -67,27 +79,35 @@ function TheButtonRenderer({
 
   const diff = Math.abs(10 - elapsed);
   const busted = elapsed > 10;
+  const secondsRemaining = Math.max(0, 10 - elapsed);
 
   return (
-    <div className="game-chamber">
+    <div className="game-chamber" ref={containerRef}>
+      <Confetti active={!!result && result.winner === "me"} />
       <div className="game-chamber__artifact" aria-hidden="true">
         <span />
         <i />
         {stopped ? <Timer /> : <CircleStop />}
       </div>
       {result ? (
-        <>
-          <p className="lobby-kicker">{result.winner === "me" ? "You took it." : result.winner === "them" ? "They took it." : "Draw."}</p>
-          <h1>{result.summary}</h1>
-          <div className="game-chamber__players">
-            <span>You / {result.myScore.toFixed(2)}s</span>
-            <span>They / {result.theirScore.toFixed(2)}s</span>
-          </div>
-        </>
+        <ResultReveal
+          winner={result.winner}
+          myScore={Math.round(result.myScore * 100) / 100}
+          theirScore={Math.round(result.theirScore * 100) / 100}
+          summary={result.summary}
+        />
       ) : (
         <>
           <p className="lobby-kicker">Press stop as close to 10s</p>
-          <h1 className="text-6xl tabular-nums">{elapsed.toFixed(2)}s</h1>
+          <div style={{ display: "flex", justifyContent: "center", margin: "16px 0" }}>
+            <TimerRing
+              seconds={secondsRemaining}
+              total={10}
+              size={140}
+              color="#8b5cf6"
+              urgentColor="#ef4444"
+            />
+          </div>
           <p>
             {busted
               ? "You went over. That's a bust."
@@ -172,6 +192,14 @@ function ChickenRenderer({
   const [released, setReleased] = useState(false);
   const raf = useRef<number>(0);
   const startTime = useRef<number>(0);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (el) {
+      gsap.fromTo(el, { opacity: 0, y: 20, scale: 0.96 }, { opacity: 1, y: 0, scale: 1, duration: 0.4, ease: "power2.out" });
+    }
+  }, []);
 
   useEffect(() => {
     if (state.status !== "playing" || released) return;
@@ -201,27 +229,35 @@ function ChickenRenderer({
   }, [released, progress, onInput]);
 
   const barColor = progress < 50 ? "#22c55e" : progress < 80 ? "#eab308" : "#ef4444";
+  const secondsRemaining = Math.max(0, 20 - (progress / 100) * 20);
 
   return (
-    <div className="game-chamber">
+    <div className="game-chamber" ref={containerRef}>
+      <Confetti active={!!result && result.winner === "me"} />
       <div className="game-chamber__artifact" aria-hidden="true">
         <span />
         <i />
         <Hand />
       </div>
       {result ? (
-        <>
-          <p className="lobby-kicker">{result.winner === "me" ? "You held." : result.winner === "them" ? "They held." : "Draw."}</p>
-          <h1>{result.summary}</h1>
-          <div className="game-chamber__players">
-            <span>You / {result.myScore.toFixed(0)}%</span>
-            <span>They / {result.theirScore.toFixed(0)}%</span>
-          </div>
-        </>
+        <ResultReveal
+          winner={result.winner}
+          myScore={Math.round(result.myScore)}
+          theirScore={Math.round(result.theirScore)}
+          summary={result.summary}
+        />
       ) : (
         <>
           <p className="lobby-kicker">Hold the bar</p>
-          <h1 className="text-6xl tabular-nums">{progress.toFixed(0)}%</h1>
+          <div style={{ display: "flex", justifyContent: "center", margin: "16px 0" }}>
+            <TimerRing
+              seconds={secondsRemaining}
+              total={20}
+              size={140}
+              color="#8b5cf6"
+              urgentColor="#ef4444"
+            />
+          </div>
           <div style={{ width: "100%", height: 12, background: "#1e293b", borderRadius: 6, overflow: "hidden", margin: "12px 0" }}>
             <div style={{ width: `${progress}%`, height: "100%", background: barColor, transition: "background 0.3s", borderRadius: 6 }} />
           </div>

@@ -1,8 +1,11 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
+import gsap from "gsap";
 import { Sprout, Dice1, Dice2, Dice3, Dice4, Dice5, Dice6 } from "lucide-react";
 import { playExperienceSelect, pulseHaptic } from "@/components/experience/experience-audio";
+import { ResultReveal } from "@/components/juice/ResultReveal";
+import { Confetti } from "@/components/juice/Confetti";
 import type { GameEngine, GameState, GameResult } from "./game-engine";
 
 interface DiceFateState extends GameState {
@@ -65,24 +68,30 @@ function DiceFateRenderer({
 
   const dieFace = result ? Math.round(result.myScore) : face;
   const DiceIcon = diceIcons[Math.min(dieFace - 1, 5)];
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (el) {
+      gsap.fromTo(el, { opacity: 0, y: 20, scale: 0.96 }, { opacity: 1, y: 0, scale: 1, duration: 0.4, ease: "power2.out" });
+    }
+  }, []);
 
   return (
-    <div className="game-chamber">
+    <div className="game-chamber" ref={containerRef}>
+      <Confetti active={!!result && result.winner === "me"} />
       <div className="game-chamber__artifact" aria-hidden="true">
         <span />
         <i />
         <DiceIcon />
       </div>
       {result ? (
-        <>
-          <p className="lobby-kicker">{rolling ? "The die is tumbling..." : "The die settled."}</p>
-          <h1 className="text-7xl tabular-nums">{rolling ? "..." : dieFace}</h1>
-          <p>{result.summary}</p>
-          <div className="game-chamber__players">
-            <span>You / {result.myScore > 0 ? "Win" : "Lose"}</span>
-            <span>They / {result.theirScore > 0 ? "Win" : "Lose"}</span>
-          </div>
-        </>
+        <ResultReveal
+          winner={result.winner}
+          myScore={result.myScore}
+          theirScore={result.theirScore}
+          summary={result.summary}
+        />
       ) : (
         <>
           <p className="lobby-kicker">Bet on the die</p>

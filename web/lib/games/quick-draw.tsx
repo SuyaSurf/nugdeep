@@ -1,8 +1,11 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
+import gsap from "gsap";
 import { Swords, Timer } from "lucide-react";
 import { playExperienceSelect, pulseHaptic } from "@/components/experience/experience-audio";
+import { ResultReveal } from "@/components/juice/ResultReveal";
+import { Confetti } from "@/components/juice/Confetti";
 import type { GameEngine, GameState, GameResult } from "./game-engine";
 
 interface QuickDrawState extends GameState {
@@ -73,23 +76,30 @@ function QuickDrawRenderer({
   }, [fired, phase, onInput]);
 
   const flinched = phase === "ready" && fired;
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (el) {
+      gsap.fromTo(el, { opacity: 0, y: 20, scale: 0.96 }, { opacity: 1, y: 0, scale: 1, duration: 0.4, ease: "power2.out" });
+    }
+  }, []);
 
   return (
-    <div className="game-chamber">
+    <div className="game-chamber" ref={containerRef}>
+      <Confetti active={!!result && result.winner === "me"} />
       <div className="game-chamber__artifact" aria-hidden="true">
         <span />
         <i />
         {result ? <Swords /> : phase === "ready" ? <Timer /> : <Swords />}
       </div>
       {result ? (
-        <>
-          <p className="lobby-kicker">{result.winner === "me" ? "You drew first." : result.winner === "them" ? "They drew first." : "Draw."}</p>
-          <h1>{result.summary}</h1>
-          <div className="game-chamber__players">
-            <span>You / {result.myScore.toFixed(3)}s</span>
-            <span>They / {result.theirScore.toFixed(3)}s</span>
-          </div>
-        </>
+        <ResultReveal
+          winner={result.winner}
+          myScore={Math.round(result.myScore * 1000) / 1000}
+          theirScore={Math.round(result.theirScore * 1000) / 1000}
+          summary={result.summary}
+        />
       ) : (
         <>
           <p className="lobby-kicker">{fired ? "You fired." : phase === "draw" ? "DRAW!" : "Wait for it..."}</p>

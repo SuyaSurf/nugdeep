@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "@clerk/nextjs";
 import { apiFetch, wsConnectRooms } from "@/lib/api";
 import Scene3D from "./Scene3D";
-// AudioSystem removed — replaced by AudioManager in Task 1.8
+import { playSfx } from "@/lib/juice/sfx-library";
 
 interface CardInfo {
   id: string;
@@ -82,7 +82,7 @@ export default function WordCardGame() {
           return 0;
         }
         if (prev <= 6 && prev > 1) {
-          /* AudioManager TODO */
+          playSfx("countdown-tick");
         }
         return prev - 1;
       });
@@ -98,9 +98,9 @@ export default function WordCardGame() {
     popupTimerRef.current = setTimeout(() => setPointsPopup(null), 2000);
     setShowBurst(true);
     setTimeout(() => setShowBurst(false), 600);
-    /* AudioManager TODO */
+    playSfx("score-reveal");
     if (streak) {
-      setTimeout(() => { /* AudioManager TODO */ }, 150);
+      setTimeout(() => { playSfx("score-reveal"); }, 150);
     }
   }
 
@@ -116,7 +116,7 @@ export default function WordCardGame() {
             setPhase("playing");
             setGameState(msg.state);
             setMessage("Game started!");
-            /* AudioManager TODO */
+            playSfx("hover");
             break;
           case "wordcard:card_played":
             setGameState(msg.state);

@@ -1,8 +1,11 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
+import gsap from "gsap";
 import { Heart } from "lucide-react";
 import { playExperienceSelect, pulseHaptic } from "@/components/experience/experience-audio";
+import { ResultReveal } from "@/components/juice/ResultReveal";
+import { Confetti } from "@/components/juice/Confetti";
 import type { GameEngine, GameState, GameResult } from "./game-engine";
 
 interface FoodRemedyState extends GameState {
@@ -66,19 +69,30 @@ function FoodRemedyRenderer({
   }, [pick, onInput]);
 
   const correct = state.correct;
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (el) {
+      gsap.fromTo(el, { opacity: 0, y: 20, scale: 0.96 }, { opacity: 1, y: 0, scale: 1, duration: 0.4, ease: "power2.out" });
+    }
+  }, []);
 
   return (
-    <div className="game-chamber">
+    <div className="game-chamber" ref={containerRef}>
+      <Confetti active={!!result && result.winner === "me"} />
       <div className="game-chamber__artifact" aria-hidden="true">
         <span />
         <i />
         <Heart />
       </div>
       {result ? (
-        <>
-          <p className="lobby-kicker">{result.winner === "me" ? "You knew it." : result.winner === "them" ? "They knew it." : "Same result."}</p>
-          <h1>{result.summary}</h1>
-        </>
+        <ResultReveal
+          winner={result.winner}
+          myScore={result.myScore}
+          theirScore={result.theirScore}
+          summary={result.summary}
+        />
       ) : (
         <>
           <p className="lobby-kicker">Natural remedy for...</p>

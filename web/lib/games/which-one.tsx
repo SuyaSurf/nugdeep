@@ -1,8 +1,11 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
+import gsap from "gsap";
 import { Heart } from "lucide-react";
 import { playExperienceSelect, pulseHaptic } from "@/components/experience/experience-audio";
+import { ResultReveal } from "@/components/juice/ResultReveal";
+import { Confetti } from "@/components/juice/Confetti";
 import type { GameEngine, GameState, GameResult } from "./game-engine";
 
 const PROMPTS = [
@@ -50,22 +53,30 @@ function WhichOneRenderer({
     onInput({ pick: choice });
   }, [pick, onInput]);
 
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (el) {
+      gsap.fromTo(el, { opacity: 0, y: 20, scale: 0.96 }, { opacity: 1, y: 0, scale: 1, duration: 0.4, ease: "power2.out" });
+    }
+  }, []);
+
   return (
-    <div className="game-chamber">
+    <div className="game-chamber" ref={containerRef}>
+      <Confetti active={!!result && result.winner === "me"} />
       <div className="game-chamber__artifact" aria-hidden="true">
         <span />
         <i />
         <Heart />
       </div>
       {result ? (
-        <>
-          <p className="lobby-kicker">{result.winner === "draw" ? "Matched!" : "Different picks."}</p>
-          <h1>{result.summary}</h1>
-          <div className="game-chamber__players">
-            <span>You / {pick}</span>
-            <span>They / {result.myScore === 1 ? "matched" : "different"}</span>
-          </div>
-        </>
+        <ResultReveal
+          winner={result.winner}
+          myScore={result.myScore}
+          theirScore={result.theirScore}
+          summary={result.summary}
+        />
       ) : (
         <>
           <p className="lobby-kicker">Which one?</p>
