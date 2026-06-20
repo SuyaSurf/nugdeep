@@ -2,7 +2,14 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { Volume2, VolumeX } from "lucide-react";
 import { SignInButton, SignUpButton, UserButton, useUser } from "@clerk/nextjs";
+import { useAudioStore } from "@/lib/stores/audio-store";
+import {
+  enableExperienceAudio,
+  disableExperienceAudio,
+  pulseHaptic,
+} from "@/components/experience/experience-audio";
 
 function ClerkAuthControls() {
   const { isSignedIn, isLoaded } = useUser();
@@ -33,6 +40,32 @@ function ClerkAuthControls() {
   );
 }
 
+function SoundToggle() {
+  const { isEnabled, setEnabled } = useAudioStore();
+
+  const handleToggle = async () => {
+    pulseHaptic("select");
+    if (isEnabled) {
+      disableExperienceAudio();
+      setEnabled(false);
+    } else {
+      const ok = await enableExperienceAudio();
+      setEnabled(ok);
+    }
+  };
+
+  return (
+    <button
+      type="button"
+      onClick={handleToggle}
+      aria-label={isEnabled ? "Mute sound" : "Enable sound"}
+      className="rounded-lg p-1.5 text-slate-300 hover:text-white hover:bg-slate-800 transition-colors"
+    >
+      {isEnabled ? <Volume2 size={16} /> : <VolumeX size={16} />}
+    </button>
+  );
+}
+
 export default function Nav({ authEnabled = true }: { authEnabled?: boolean }) {
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
@@ -44,7 +77,8 @@ export default function Nav({ authEnabled = true }: { authEnabled?: boolean }) {
           <span>Bammby</span>
           <small>Night shift / 01</small>
         </Link>
-        <div className="bammby-nav__controls">
+        <div className="bammby-nav__controls" style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+          {mounted && <SoundToggle />}
           {!authEnabled ? (
             <Link href="/lobby" className="text-sm text-slate-300 hover:text-white">
               Enter

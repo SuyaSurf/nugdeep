@@ -153,6 +153,11 @@ function LobbyExperience({
       setChoice(selected);
       setPhase("queued");
 
+      emit({
+        type: "queue_searching",
+        payload: { intent, game, choice: selected },
+      });
+
       if (demo) {
         demoMatchTimer.current = window.setTimeout(() => {
           setMatchId(`preview-${dayKey}`);

@@ -7,6 +7,7 @@ import { useWsStore } from "@/lib/stores/ws-store";
 import type { GameEngine, GameState, GameResult } from "@/lib/games/game-engine";
 import { playExperienceReveal, pulseHaptic } from "@/components/experience/experience-audio";
 import { useExperienceEventStore } from "@/lib/experience/event-store";
+import { CeremonyAnimation } from "@/components/experience/CeremonyAnimation";
 
 interface GameShellProps {
   engine: GameEngine;
@@ -144,6 +145,11 @@ export function GameShell({ engine, onComplete, matchId, aiLevel }: GameShellPro
     <section className="game-chamber">
       {phase === "done" && result ? (
         <>
+          <CeremonyAnimation
+            type={round >= engine.maxRounds ? "game-over" : "score-reveal"}
+            outcome={result.winner === "me" ? "win" : result.winner === "them" ? "lose" : undefined}
+            visible
+          />
           <div className="game-chamber__artifact" aria-hidden="true">
             <span />
             <i />

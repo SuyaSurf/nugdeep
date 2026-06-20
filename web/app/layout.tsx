@@ -2,6 +2,9 @@ import type { Metadata, Viewport } from "next";
 import { ClerkProvider } from "@clerk/nextjs";
 import Script from "next/script";
 import Nav from "@/components/Nav";
+import { SoundAutoEnable } from "@/components/experience/SoundAutoEnable";
+import { CinematicOrchestrator } from "@/lib/experience/cinematic-orchestrator";
+import { TutorialOverlay } from "@/components/juice/TutorialOverlay";
 import "./globals.css";
 
 export const dynamic = "force-dynamic";
@@ -46,6 +49,9 @@ export default function RootLayout({
         }}
       />
       <body className="bg-slate-950 text-slate-100 min-h-screen antialiased">
+        <SoundAutoEnable />
+        <CinematicOrchestrator />
+        <TutorialOverlay />
         {clerkKey ? (
           <ClerkProvider publishableKey={clerkKey}>
             <Nav authEnabled />

@@ -12,6 +12,7 @@ import { Canvas } from "@react-three/fiber";
 import * as THREE from "three";
 import { useRouter } from "next/navigation";
 import { ArrowRight } from "lucide-react";
+import { useAudioStore } from "@/lib/stores/audio-store";
 import {
   enableExperienceAudio,
   playExperienceEnter,
@@ -21,32 +22,22 @@ import {
 export default function ArrivalScene3D() {
   const [approaching, setApproaching] = useState(false);
   const [pointer, setPointer] = useState({ x: 0.5, y: 0.5 });
-  const [soundOn, setSoundOn] = useState(false);
+  const { isEnabled, setEnabled } = useAudioStore();
   const router = useRouter();
 
   const handleEnter = useCallback(async () => {
+    if (!isEnabled) {
+      const ok = await enableExperienceAudio();
+      setEnabled(ok);
+    }
     playExperienceEnter();
     pulseHaptic("enter");
     setApproaching(true);
-  }, []);
+  }, [isEnabled, setEnabled]);
 
   const handleApproachComplete = useCallback(() => {
     router.push("/lobby");
   }, [router]);
-
-  const toggleSound = useCallback(async () => {
-    pulseHaptic("select");
-    if (soundOn) {
-      const { disableExperienceAudio } = await import(
-        "@/components/experience/experience-audio"
-      );
-      disableExperienceAudio();
-      setSoundOn(false);
-    } else {
-      const ok = await enableExperienceAudio();
-      setSoundOn(ok);
-    }
-  }, [soundOn]);
 
   return (
     <main
@@ -152,16 +143,6 @@ export default function ArrivalScene3D() {
         </section>
       </div>
 
-      {/* Sound toggle */}
-      <button
-        type="button"
-        className="experience-sound"
-        onClick={toggleSound}
-        aria-pressed={soundOn}
-        aria-label={soundOn ? "Mute Bammby ambience" : "Enable Bammby ambience"}
-      >
-        <span>{soundOn ? "Sound on" : "Sound off"}</span>
-      </button>
     </main>
   );
 }

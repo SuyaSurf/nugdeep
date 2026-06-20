@@ -1,15 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
-import { Volume2, VolumeX } from "lucide-react";
-import {
-  disableExperienceAudio,
-  enableExperienceAudio,
-  isExperienceAudioEnabled,
-  pulseHaptic,
-} from "./experience-audio";
+import { useCallback, useRef } from "react";
 import { PresenceField } from "./PresenceField";
-import { ExperienceEventDirector } from "./ExperienceEventDirector";
 
 interface ExperienceShellProps {
   children: React.ReactNode;
@@ -25,20 +17,6 @@ export function ExperienceShell({
   className = "",
 }: ExperienceShellProps) {
   const shellRef = useRef<HTMLElement>(null);
-  const [soundOn, setSoundOn] = useState(false);
-  const [reducedMotion, setReducedMotion] = useState(false);
-
-  useEffect(() => {
-    setSoundOn(isExperienceAudioEnabled());
-  }, []);
-
-  useEffect(() => {
-    const mediaQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
-    setReducedMotion(mediaQuery.matches);
-    const handler = (event: MediaQueryListEvent) => setReducedMotion(event.matches);
-    mediaQuery.addEventListener("change", handler);
-    return () => mediaQuery.removeEventListener("change", handler);
-  }, []);
 
   const moveLight = useCallback((clientX: number, clientY: number) => {
     const shell = shellRef.current;
@@ -52,16 +30,6 @@ export function ExperienceShell({
     shell.style.setProperty("--tilt-y", `${(x - 50) * 0.035}deg`);
   }, []);
 
-  const toggleSound = async () => {
-    pulseHaptic("select");
-    if (soundOn) {
-      disableExperienceAudio();
-      setSoundOn(false);
-      return;
-    }
-    setSoundOn(await enableExperienceAudio());
-  };
-
   return (
     <main
       ref={shellRef}
@@ -70,10 +38,6 @@ export function ExperienceShell({
       onPointerMove={(event) => moveLight(event.clientX, event.clientY)}
       onPointerDown={(event) => moveLight(event.clientX, event.clientY)}
     >
-      <ExperienceEventDirector
-        soundEnabled={soundOn}
-        reducedMotion={reducedMotion}
-      />
       <div className="experience-world" aria-hidden="true">
         <div className="experience-world__sky" />
         <div className="experience-world__moon" />
@@ -90,17 +54,6 @@ export function ExperienceShell({
         <div className="experience-world__grain" />
         <PresenceField compact={compactPresence} />
       </div>
-
-      <button
-        type="button"
-        className="experience-sound"
-        onClick={toggleSound}
-        aria-pressed={soundOn}
-        aria-label={soundOn ? "Mute Bammby ambience" : "Enable Bammby ambience"}
-      >
-        {soundOn ? <Volume2 size={16} /> : <VolumeX size={16} />}
-        <span>{soundOn ? "Sound on" : "Sound off"}</span>
-      </button>
 
       <div className="experience-content">{children}</div>
     </main>

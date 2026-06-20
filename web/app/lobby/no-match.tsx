@@ -8,6 +8,7 @@ import {
   pulseHaptic,
 } from "@/components/experience/experience-audio";
 import { useExperienceEventStore } from "@/lib/experience/event-store";
+import { MascotAnimation } from "@/components/experience/MascotAnimation";
 
 interface Props {
   onRetry: () => void;
@@ -54,6 +55,13 @@ export function NoMatch({ onRetry, onChange, onPlayAI }: Props) {
               onClick={() => handlePick(char.id)}
               disabled={picked !== null}
             >
+              <MascotAnimation
+                name={char.name}
+                level={char.level}
+                accent={char.accent}
+                mood={picked === char.id ? "selected" : "idle"}
+                size={64}
+              />
               <span className="agent-card__level">L{char.level}</span>
               <span className="agent-card__name">{char.name}</span>
               <span className="agent-card__tagline">{char.tagline}</span>
