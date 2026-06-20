@@ -1,0 +1,56 @@
+server {
+    server_name suya.surf www.suya.surf;
+    root /var/www/suya.surf;
+    index index.html;
+
+    # Gzip compression
+    gzip on;
+    gzip_types text/plain text/css application/javascript text/markdown;
+    gzip_min_length 256;
+
+    # Cache static assets
+    location ~* \.(css|js|png|jpg|jpeg|gif|ico|svg|woff2?)$ {
+        expires 7d;
+        add_header Cache-Control "public, immutable";
+    }
+
+    location / {
+        try_files $uri $uri/ =404;
+    }
+
+    # Serve blueprint.md with proper content type
+    location = /blueprint.md {
+        default_type text/plain;
+        add_header Content-Type "text/plain; charset=utf-8";
+        try_files /blueprint.md =404;
+    }
+
+    listen [::]:443 ssl; # managed by Certbot
+    listen 443 ssl; # managed by Certbot
+    ssl_certificate /etc/letsencrypt/live/suya.surf/fullchain.pem; # managed by Certbot
+    ssl_certificate_key /etc/letsencrypt/live/suya.surf/privkey.pem; # managed by Certbot
+    include /etc/letsencrypt/options-ssl-nginx.conf; # managed by Certbot
+    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem; # managed by Certbot
+
+
+}
+server {
+    if ($host = www.suya.surf) {
+        return 301 https://$host$request_uri;
+    } # managed by Certbot
+
+
+    if ($host = suya.surf) {
+        return 301 https://$host$request_uri;
+    } # managed by Certbot
+
+
+    listen 80;
+    listen [::]:80;
+    server_name suya.surf www.suya.surf;
+    return 404; # managed by Certbot
+
+
+
+
+}

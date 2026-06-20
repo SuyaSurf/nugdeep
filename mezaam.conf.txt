@@ -1,0 +1,279 @@
+# Mezaam nginx vhost — post-certbot shape.
+# Replace /etc/nginx/conf.d/mezaam.conf with this file then:
+#   sudo nginx -t && sudo systemctl reload nginx
+#
+# Domains:
+#   brainpad.me / www.brainpad.me  → marketing landing page (/var/www/brainpad/)
+#   meza.brainpad.me               → Flutter web app (/var/www/mezaam/)
+#   api.brainpad.me                → Rust gateway (127.0.0.1:9020)
+#                                    + Kokoro TTS (127.0.0.1:9030)
+#                                    + APK download mirror
+
+# ── Marketing landing page (apex + www) ──────────────────────────────────
+server {
+    server_name brainpad.me www.brainpad.me;
+
+    root  /var/www/brainpad;
+    index index.html;
+
+    error_page 404 /404.html;
+    location = /404.html { internal; }
+
+    location ~* \.(?:png|svg|webp|jpg|jpeg|ico)$ {
+        expires 30d;
+        add_header Cache-Control "public, immutable";
+        try_files $uri =404;
+    }
+    location ~* \.(?:css|js)$ {
+        expires 1d;
+        add_header Cache-Control "public";
+        try_files $uri =404;
+    }
+
+    # APK download from landing page
+    location /download/ {
+        root /var/www/mezaam;
+        add_header Content-Disposition 'attachment';
+        expires 10m;
+        try_files $uri =404;
+    }
+
+    location / {
+        try_files $uri $uri/ $uri.html =404;
+    }
+
+    client_max_body_size 5M;
+
+    listen [::]:443 ssl; # managed by Certbot
+    listen 443 ssl;      # managed by Certbot
+    ssl_certificate /etc/letsencrypt/live/meza.brainpad.me/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/meza.brainpad.me/privkey.pem;
+    include /etc/letsencrypt/options-ssl-nginx.conf;
+    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
+}
+
+# ── Flutter web app (meza subdomain) ─────────────────────────────────────
+server {
+    server_name meza.brainpad.me;
+
+    root  /var/www/mezaam;
+    index index.html;
+
+    error_page 404 /404.html;
+    location = /404.html { internal; }
+
+    location ~* \.(?:png|svg|webp|jpg|jpeg|ico)$ {
+        expires 30d;
+        add_header Cache-Control "public, immutable";
+        try_files $uri =404;
+    }
+    location ~* \.(?:css|js)$ {
+        expires 1d;
+        add_header Cache-Control "public";
+        try_files $uri =404;
+    }
+
+    location /download/ {
+        add_header Content-Disposition 'attachment';
+        expires 10m;
+        try_files $uri =404;
+    }
+
+
+    # Flutter SW cache bust — never cache the bootstrap artifacts, so
+    # new deploys propagate without users needing to clear storage.
+    location = /flutter_service_worker.js {
+        add_header Cache-Control "no-cache, no-store, must-revalidate" always;
+        expires -1;
+        try_files $uri =404;
+    }
+    location = /flutter_bootstrap.js {
+        add_header Cache-Control "no-cache, no-store, must-revalidate" always;
+        expires -1;
+        try_files $uri =404;
+    }
+    location = /main.dart.js {
+        add_header Cache-Control "no-cache, no-store, must-revalidate" always;
+        expires -1;
+        try_files $uri =404;
+    }
+    location = /sqflite_sw.js {
+        add_header Cache-Control "no-cache, no-store, must-revalidate" always;
+        expires -1;
+        try_files $uri =404;
+    }
+    location = /sqlite3.wasm {
+        types { application/wasm wasm; }
+        default_type application/wasm;
+        add_header Cache-Control "public, max-age=86400" always;
+        try_files $uri =404;
+    }
+    location = /index.html {
+        add_header Cache-Control "no-cache, no-store, must-revalidate" always;
+        expires -1;
+        try_files $uri =404;
+    }
+    location = /manifest.json {
+        add_header Cache-Control "no-cache" always;
+        expires -1;
+        try_files $uri =404;
+    }
+    location = /version.json {
+        add_header Cache-Control "no-cache" always;
+        expires -1;
+        try_files $uri =404;
+    }
+    location = /.last_build_id {
+        add_header Cache-Control "no-cache" always;
+        expires -1;
+        try_files $uri =404;
+    }
+    # Flutter web SPA — all non-file paths serve index.html.
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+
+    add_header X-Frame-Options SAMEORIGIN always;
+    add_header X-Content-Type-Options nosniff always;
+    add_header Referrer-Policy strict-origin-when-cross-origin always;
+    # Allow popup postMessage from any origin (OAuth callback page).
+    add_header Access-Control-Allow-Origin "*" always;
+
+    client_max_body_size 25M;
+
+    listen [::]:443 ssl; # managed by Certbot
+    listen 443 ssl;      # managed by Certbot
+    ssl_certificate /etc/letsencrypt/live/meza.brainpad.me/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/meza.brainpad.me/privkey.pem;
+    include /etc/letsencrypt/options-ssl-nginx.conf;
+    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
+}
+
+# ── API subdomain ─────────────────────────────────────────────────────────
+server {
+    server_name api.brainpad.me;
+
+    # APK download mirror (needed for the download-link email)
+    location /download/ {
+        root /var/www/mezaam;
+        add_header Content-Disposition 'attachment';
+        expires 10m;
+        try_files $uri =404;
+    }
+
+
+    # MinIO passthrough — S3-compatible blob storage behind presigned URLs.
+    location /storage/ {
+        rewrite ^/storage/(.*)$ /$1 break;
+        proxy_pass              http://127.0.0.1:9100;
+        proxy_http_version      1.1;
+        proxy_set_header        Host $host;
+        proxy_set_header        X-Real-IP $remote_addr;
+        proxy_set_header        X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header        X-Forwarded-Proto $scheme;
+        proxy_request_buffering off;
+        proxy_buffering         off;
+        client_max_body_size    200M;
+        proxy_read_timeout      300s;
+    }
+
+    # Gateway realtime STT WebSocket.
+    location = /v1/stt/stream {
+        proxy_pass         http://127.0.0.1:9020;
+        proxy_http_version 1.1;
+        proxy_set_header   Host              $host;
+        proxy_set_header   X-Real-IP         $remote_addr;
+        proxy_set_header   X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header   X-Forwarded-Proto $scheme;
+        proxy_set_header   Upgrade           $http_upgrade;
+        proxy_set_header   Connection        $connection_upgrade;
+        proxy_read_timeout 60s;
+        proxy_connect_timeout 10s;
+        add_header Access-Control-Allow-Origin "*" always;
+        add_header Access-Control-Allow-Methods "GET, POST, OPTIONS" always;
+        add_header Access-Control-Allow-Headers "Content-Type, Authorization" always;
+    }
+
+    # Gateway realtime TTS WebSocket. Keep this exact route above the
+    # Kokoro compatibility proxy so /v1/tts/stream reaches Axum.
+    location = /v1/tts/stream {
+        proxy_pass         http://127.0.0.1:9020;
+        proxy_http_version 1.1;
+        proxy_set_header   Host              $host;
+        proxy_set_header   X-Real-IP         $remote_addr;
+        proxy_set_header   X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header   X-Forwarded-Proto $scheme;
+        proxy_set_header   Upgrade           $http_upgrade;
+        proxy_set_header   Connection        $connection_upgrade;
+        proxy_read_timeout 60s;
+        proxy_connect_timeout 10s;
+        add_header Access-Control-Allow-Origin "*" always;
+        add_header Access-Control-Allow-Methods "GET, POST, OPTIONS" always;
+        add_header Access-Control-Allow-Headers "Content-Type, Authorization" always;
+    }
+
+    # Kokoro TTS — OpenAI-compatible /v1/audio/speech endpoint.
+    # Client calls https://api.brainpad.me/v1/tts/v1/audio/speech
+    location ^~ /v1/tts/ {
+        rewrite ^/v1/tts/(.*)$ /$1 break;
+        proxy_pass         http://127.0.0.1:9030;
+        proxy_http_version 1.1;
+        proxy_set_header   Host              $host;
+        proxy_set_header   X-Real-IP         $remote_addr;
+        proxy_read_timeout 30s;
+        proxy_connect_timeout 5s;
+        # TTS responses can be a few MB (audio files).
+        proxy_buffering    off;
+        add_header Access-Control-Allow-Origin "*" always;
+        add_header Access-Control-Allow-Methods "GET, POST, OPTIONS" always;
+        add_header Access-Control-Allow-Headers "Content-Type, Authorization" always;
+        if ($request_method = OPTIONS) { return 204; }
+    }
+
+    # Rust gateway — all /v1/* and /healthz routes.
+    location ~ ^/(v1|healthz)(/|$) {
+        proxy_pass         http://127.0.0.1:9020;
+        proxy_http_version 1.1;
+        proxy_set_header   Host              $host;
+        proxy_set_header   X-Real-IP         $remote_addr;
+        proxy_set_header   X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header   X-Forwarded-Proto $scheme;
+        proxy_read_timeout 60s;
+        proxy_connect_timeout 10s;
+        add_header Access-Control-Allow-Origin "*" always;
+        add_header Access-Control-Allow-Methods "GET, POST, OPTIONS" always;
+        add_header Access-Control-Allow-Headers "Content-Type, Authorization" always;
+        if ($request_method = OPTIONS) { return 204; }
+    }
+
+    location / {
+        return 404 "not here — try meza.brainpad.me\n";
+        add_header Content-Type text/plain;
+    }
+
+    listen [::]:443 ssl; # managed by Certbot
+    listen 443 ssl;      # managed by Certbot
+    ssl_certificate /etc/letsencrypt/live/meza.brainpad.me/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/meza.brainpad.me/privkey.pem;
+    include /etc/letsencrypt/options-ssl-nginx.conf;
+    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
+}
+
+# ── HTTP → HTTPS redirects ────────────────────────────────────────────────
+server {
+    listen 80;
+    listen [::]:80;
+    server_name brainpad.me www.brainpad.me meza.brainpad.me;
+
+    location /.well-known/acme-challenge/ { root /var/www/certbot; }
+    location / { return 301 https://$host$request_uri; }
+}
+
+server {
+    listen 80;
+    listen [::]:80;
+    server_name api.brainpad.me;
+
+    location /.well-known/acme-challenge/ { root /var/www/certbot; }
+    location / { return 301 https://$host$request_uri; }
+}

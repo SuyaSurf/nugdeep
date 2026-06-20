@@ -1,5 +1,7 @@
 "use client";
 
+export type GameCategory = "nerve" | "reflex" | "psychology" | "social" | "strategy" | "knowledge" | "visual";
+
 export interface GameRound {
   number: number;
   prompt: string;

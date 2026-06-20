@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "@clerk/nextjs";
 import { apiFetch, wsConnectRooms } from "@/lib/api";
 import Scene3D from "./Scene3D";
-import { playCardAudio, scoreAudio, tickAudio, winAudio, shuffleAudio } from "./AudioSystem";
+// AudioSystem removed — replaced by AudioManager in Task 1.8
 
 interface CardInfo {
   id: string;
@@ -82,7 +82,7 @@ export default function WordCardGame() {
           return 0;
         }
         if (prev <= 6 && prev > 1) {
-          tickAudio.current();
+          /* AudioManager TODO */
         }
         return prev - 1;
       });
@@ -98,9 +98,9 @@ export default function WordCardGame() {
     popupTimerRef.current = setTimeout(() => setPointsPopup(null), 2000);
     setShowBurst(true);
     setTimeout(() => setShowBurst(false), 600);
-    scoreAudio.current(pts);
+    /* AudioManager TODO */
     if (streak) {
-      setTimeout(() => scoreAudio.current(pts), 150);
+      setTimeout(() => { /* AudioManager TODO */ }, 150);
     }
   }
 
@@ -116,7 +116,7 @@ export default function WordCardGame() {
             setPhase("playing");
             setGameState(msg.state);
             setMessage("Game started!");
-            shuffleAudio.current();
+            /* AudioManager TODO */
             break;
           case "wordcard:card_played":
             setGameState(msg.state);
@@ -128,19 +128,19 @@ export default function WordCardGame() {
               setTimeout(() => {
                 if (msg.game_over) {
                   setPhase("finished");
-                  winAudio.current();
+                  /* AudioManager TODO */
                   setMessage(msg.winner_id === userId ? "You won the match!" : "Opponent won the match!");
                 } else {
                   startNextRound(gid);
                 }
               }, 2000);
             } else {
-              playCardAudio.current();
+              /* AudioManager TODO */
             }
             break;
           case "wordcard:timeout":
             setPhase("finished");
-            winAudio.current();
+            /* AudioManager TODO */;
             setMessage(msg.winner === userId ? "Opponent timed out! You win!" : "You timed out!");
             break;
           case "wordcard:refilled":
@@ -151,7 +151,7 @@ export default function WordCardGame() {
             setPhase("playing");
             setTimer(30);
             setMessage(`Round ${msg.round}`);
-            shuffleAudio.current();
+            /* AudioManager TODO */
             setTimeout(() => setMessage(""), 2000);
             break;
         }
@@ -172,7 +172,7 @@ export default function WordCardGame() {
       setPhase("playing");
       setTimer(30);
       setMessage(`Round ${data.round}`);
-      shuffleAudio.current();
+      /* AudioManager TODO */;
       setTimeout(() => setMessage(""), 2000);
     } catch {
       setMessage("Failed to start next round");
@@ -233,14 +233,14 @@ export default function WordCardGame() {
         setTimeout(() => {
           if (data.game_over) {
             setPhase("finished");
-            winAudio.current();
+            /* AudioManager TODO */;
             setMessage("You won the match!");
           } else {
             startNextRound(gameId);
           }
         }, 2000);
       } else {
-        playCardAudio.current();
+        /* AudioManager TODO */;
       }
       updateGameState(data.state);
       setSelectedCard(null);

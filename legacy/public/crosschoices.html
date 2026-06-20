@@ -1,0 +1,755 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Crosschoices — Daily Puzzle</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: #0f1117;
+      color: #e8eaed;
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      padding: 16px;
+    }
+    #game-container {
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+    }
+    .caption {
+      margin-top: 12px;
+      font-size: 0.85rem;
+      color: #8b919a;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div id="game-container"></div>
+  <p class="caption" id="daily-caption">Daily puzzle</p>
+
+  <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"></script>
+  <script>
+(function () {
+  'use strict';
+
+  const ACTION_EMOJI = { go: '👉', wait: '⏸️', detour: '🔄' };
+  const OUTCOME_EMOJI = { success: '✅', clock: '🕒', fail: '❌' };
+  const REPLAY_OUTCOME = { success: '✅', clock: '⚠️', fail: '❌' };
+
+  const OBSTACLE_POOL = ['pedestrian', 'dog', 'weather', 'car', 'bus', 'police'];
+
+  const OBSTACLE_META = {
+    pedestrian: { emoji: '🚶‍♀️', statuses: ['😠', '😊', '😴'] },
+    dog:          { emoji: '🐕', statuses: ['⚡', '😴'] },
+    weather:      { emoji: '🌧', statuses: ['💧', '🌬️'] },
+    car:          { emoji: '🚗', statuses: ['⏱️'] },
+    bus:          { emoji: '🚌', statuses: ['🕒', '👥'] },
+    police:       { emoji: '👮', statuses: ['👀', '📢'] }
+  };
+
+  function dailySeed() {
+    return parseInt(new Date().toISOString().slice(0, 10).replace(/-/g, ''), 10);
+  }
+
+  function dateKey() {
+    return new Date().toISOString().slice(0, 10);
+  }
+
+  function mulberry32(seed) {
+    return function () {
+      let t = (seed += 0x6d2b79f5);
+      t = Math.imul(t ^ (t >>> 15), t | 1);
+      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  function zeroTraits() {
+    return { ei: 0, insight: 0, reliability: 0 };
+  }
+
+  function traits(ei, insight, reliability) {
+    return { ei: ei || 0, insight: insight || 0, reliability: reliability || 0 };
+  }
+
+  function defaultOutcome() {
+    return { outcomeIcon: 'clock', timePenalty: 3, traits: zeroTraits() };
+  }
+
+  function generateDailyPuzzle(rng) {
+    const segments = [];
+    for (let i = 0; i < 5; i++) {
+      const type = OBSTACLE_POOL[Math.floor(rng() * OBSTACLE_POOL.length)];
+      const meta = OBSTACLE_META[type];
+      const visibleStatus = meta.statuses[Math.floor(rng() * meta.statuses.length)];
+      const seg = {
+        type,
+        obstacleEmoji: meta.emoji,
+        visibleStatus
+      };
+      if (type === 'car') {
+        seg.policePresent = rng() < 0.4;
+      }
+      segments.push(seg);
+    }
+    return segments;
+  }
+
+  function getOutcome(segment, action, cumulativeInsight) {
+    const { type, visibleStatus, policePresent } = segment;
+    const key = type + '|' + visibleStatus;
+
+    if (key === 'pedestrian|😠') {
+      if (action === 'wait') return { outcomeIcon: 'success', timePenalty: 2, traits: traits(1, 1, 0) };
+      if (action === 'go') return { outcomeIcon: 'fail', timePenalty: 5, traits: traits(0, 0, -1) };
+      if (action === 'detour') return { outcomeIcon: 'clock', timePenalty: 4, traits: zeroTraits() };
+    }
+    if (key === 'pedestrian|😊') {
+      if (action === 'go') return { outcomeIcon: 'success', timePenalty: 1, traits: traits(0, 1, 0) };
+      if (action === 'wait') return { outcomeIcon: 'clock', timePenalty: 3, traits: traits(0, 0, -1) };
+      if (action === 'detour') return { outcomeIcon: 'clock', timePenalty: 3, traits: zeroTraits() };
+    }
+    if (key === 'pedestrian|😴') {
+      if (action === 'go') return { outcomeIcon: 'success', timePenalty: 1, traits: traits(0, 0, 1) };
+      if (action === 'wait') return { outcomeIcon: 'clock', timePenalty: 2, traits: zeroTraits() };
+      if (action === 'detour') return { outcomeIcon: 'fail', timePenalty: 4, traits: zeroTraits() };
+    }
+    if (key === 'dog|⚡') {
+      if (action === 'detour') return { outcomeIcon: 'success', timePenalty: 0, traits: traits(1, 1, 0) };
+      if (action === 'go') return { outcomeIcon: 'clock', timePenalty: 4, traits: zeroTraits() };
+      if (action === 'wait') return { outcomeIcon: 'fail', timePenalty: 5, traits: zeroTraits() };
+    }
+    if (key === 'dog|😴') {
+      if (action === 'go') return { outcomeIcon: 'success', timePenalty: 1, traits: traits(0, 0, 1) };
+      if (action === 'wait') return { outcomeIcon: 'clock', timePenalty: 2, traits: zeroTraits() };
+      if (action === 'detour') return { outcomeIcon: 'fail', timePenalty: 4, traits: zeroTraits() };
+    }
+    if (key === 'weather|💧') {
+      if (action === 'wait') return { outcomeIcon: 'success', timePenalty: 2, traits: traits(1, 0, 0) };
+      if (action === 'go') return { outcomeIcon: 'clock', timePenalty: 3, traits: zeroTraits() };
+      if (action === 'detour') return { outcomeIcon: 'fail', timePenalty: 5, traits: zeroTraits() };
+    }
+    if (key === 'weather|🌬️') {
+      if (action === 'detour') return { outcomeIcon: 'success', timePenalty: 1, traits: traits(0, 1, 0) };
+      if (action === 'wait') return { outcomeIcon: 'clock', timePenalty: 3, traits: zeroTraits() };
+      if (action === 'go') return { outcomeIcon: 'fail', timePenalty: 6, traits: zeroTraits() };
+    }
+    if (key === 'car|⏱️' && !policePresent) {
+      if (action === 'detour') return { outcomeIcon: 'success', timePenalty: 2, traits: traits(0, 0, 1) };
+      if (action === 'wait') return { outcomeIcon: 'clock', timePenalty: 4, traits: zeroTraits() };
+      if (action === 'go') return { outcomeIcon: 'fail', timePenalty: 6, traits: zeroTraits() };
+    }
+    if (key === 'car|⏱️' && policePresent) {
+      if (action === 'go') {
+        if (cumulativeInsight >= 2) {
+          return { outcomeIcon: 'success', timePenalty: 1, traits: traits(0, 2, 0) };
+        }
+        return { outcomeIcon: 'fail', timePenalty: 6, traits: traits(0, 0, -1) };
+      }
+      if (action === 'detour') return { outcomeIcon: 'clock', timePenalty: 3, traits: zeroTraits() };
+      if (action === 'wait') return { outcomeIcon: 'clock', timePenalty: 2, traits: zeroTraits() };
+    }
+    if (key === 'bus|🕒') {
+      if (action === 'wait') return { outcomeIcon: 'success', timePenalty: 2, traits: traits(1, 0, 0) };
+      if (action === 'go') return { outcomeIcon: 'fail', timePenalty: 5, traits: zeroTraits() };
+      if (action === 'detour') return { outcomeIcon: 'clock', timePenalty: 3, traits: zeroTraits() };
+    }
+    if (key === 'bus|👥') {
+      if (action === 'detour') return { outcomeIcon: 'success', timePenalty: 1, traits: traits(0, 1, 0) };
+      if (action === 'go') return { outcomeIcon: 'clock', timePenalty: 4, traits: zeroTraits() };
+      if (action === 'wait') return { outcomeIcon: 'fail', timePenalty: 5, traits: zeroTraits() };
+    }
+    if (key === 'police|👀') {
+      if (action === 'wait') return { outcomeIcon: 'success', timePenalty: 1, traits: traits(0, 0, 1) };
+      if (action === 'go') return { outcomeIcon: 'fail', timePenalty: 5, traits: zeroTraits() };
+      if (action === 'detour') return { outcomeIcon: 'clock', timePenalty: 3, traits: zeroTraits() };
+    }
+    if (key === 'police|📢') {
+      if (action === 'detour') return { outcomeIcon: 'success', timePenalty: 2, traits: traits(0, 1, 0) };
+      if (action === 'go') return { outcomeIcon: 'fail', timePenalty: 5, traits: zeroTraits() };
+      if (action === 'wait') return { outcomeIcon: 'clock', timePenalty: 4, traits: zeroTraits() };
+    }
+
+    return defaultOutcome();
+  }
+
+  function traitSum(t) {
+    return t.ei + t.insight + t.reliability;
+  }
+
+  function bestActionForSegment(seg, cumulativeInsight) {
+    const insight = cumulativeInsight == null ? 0 : cumulativeInsight;
+    const actions = ['go', 'wait', 'detour'];
+    let best = null;
+    let bestScore = -Infinity;
+    for (let i = 0; i < actions.length; i++) {
+      const o = getOutcome(seg, actions[i], insight);
+      if (o.outcomeIcon !== 'success') continue;
+      const s = traitSum(o.traits);
+      if (s > bestScore) {
+        bestScore = s;
+        best = actions[i];
+      }
+    }
+    return best;
+  }
+
+  function formatTrait(n) {
+    return (n >= 0 ? '+' : '') + n;
+  }
+
+  function buildReplayStrip(replayLog) {
+    return replayLog.map(function (e) {
+      return e.obstacleEmoji + e.actionEmoji + e.outcomeEmoji;
+    }).join(' ');
+  }
+
+  function buildShareText(replayStrip, totalTime, traitsObj) {
+    return (
+      'Play Crosschoices: ' + replayStrip + '\n' +
+      'Final: ' + totalTime + 's · EI ' + formatTrait(traitsObj.ei) +
+      ', Insight ' + formatTrait(traitsObj.insight) +
+      ', Reliability ' + formatTrait(traitsObj.reliability)
+    );
+  }
+
+  class BootScene extends Phaser.Scene {
+    constructor() { super('BootScene'); }
+    create() {
+      this.scene.start('MenuScene');
+    }
+  }
+
+  class MenuScene extends Phaser.Scene {
+    constructor() { super('MenuScene'); }
+    create() {
+      const w = this.scale.width;
+      const h = this.scale.height;
+      const dk = dateKey();
+
+      this.add.text(w / 2, h * 0.28, 'Crosschoices', {
+        fontSize: '36px',
+        fontFamily: 'system-ui, sans-serif',
+        color: '#ffffff',
+        fontStyle: 'bold'
+      }).setOrigin(0.5);
+
+      this.add.text(w / 2, h * 0.36, 'Daily street puzzle', {
+        fontSize: '16px',
+        fontFamily: 'system-ui, sans-serif',
+        color: '#8b919a'
+      }).setOrigin(0.5);
+
+      this.add.text(w / 2, h * 0.42, dk, {
+        fontSize: '14px',
+        fontFamily: 'system-ui, sans-serif',
+        color: '#4a9eff'
+      }).setOrigin(0.5);
+
+      const btnW = 280;
+      const btnH = 52;
+      const bx = w / 2 - btnW / 2;
+      const by = h * 0.52;
+
+      const bg = this.add.graphics();
+      bg.fillStyle(0x4a9eff, 1);
+      bg.fillRoundedRect(bx, by, btnW, btnH, 12);
+
+      const label = this.add.text(w / 2, by + btnH / 2, "Play Today's Challenge", {
+        fontSize: '18px',
+        fontFamily: 'system-ui, sans-serif',
+        color: '#ffffff',
+        fontStyle: 'bold'
+      }).setOrigin(0.5);
+
+      const hit = this.add.rectangle(w / 2, by + btnH / 2, btnW, btnH, 0x000000, 0)
+        .setInteractive({ useHandCursor: true });
+
+      hit.on('pointerover', function () { bg.clear(); bg.fillStyle(0x5eb0ff, 1); bg.fillRoundedRect(bx, by, btnW, btnH, 12); });
+      hit.on('pointerout', function () { bg.clear(); bg.fillStyle(0x4a9eff, 1); bg.fillRoundedRect(bx, by, btnW, btnH, 12); });
+      hit.on('pointerdown', function () {
+        this.scene.start('GameScene');
+      }, this);
+
+      this.add.text(w / 2, h * 0.72, '5 segments · 3 choices each\nTarget: 30 seconds', {
+        fontSize: '14px',
+        fontFamily: 'system-ui, sans-serif',
+        color: '#6b7280',
+        align: 'center',
+        lineSpacing: 6
+      }).setOrigin(0.5);
+    }
+  }
+
+  class GameScene extends Phaser.Scene {
+    constructor() { super('GameScene'); }
+
+    create() {
+      const seed = dailySeed();
+      const rng = mulberry32(seed);
+      this.segments = generateDailyPuzzle(rng);
+      this.registry.set('segments', this.segments);
+      this.registry.set('dateKey', dateKey());
+
+      this.segmentIndex = 0;
+      this.totalTime = 0;
+      this.traits = { ei: 0, insight: 0, reliability: 0 };
+      this.cumulativeInsight = 0;
+      this.replayLog = [];
+      this.inputLocked = false;
+
+      this.STREET_Y = 120;
+      this.STREET_H = 200;
+      this.SEG_W = 80;
+      this.SEG_START_X = 0;
+
+      this.drawBackground();
+      this.drawStreet();
+      this.segmentGraphics = [];
+      this.segmentOutcomeIcons = [];
+      this.segmentTimeTexts = [];
+
+      for (let i = 0; i < 5; i++) {
+        this.segmentOutcomeIcons.push(null);
+        this.segmentTimeTexts.push(null);
+      }
+
+      this.obstacleText = null;
+      this.statusText = null;
+      this.policeText = null;
+      this.outcomeDisplay = null;
+      this.outcomeTimeText = null;
+
+      this.createActionButtons();
+      this.renderSegment(0);
+
+      const cap = document.getElementById('daily-caption');
+      if (cap) cap.textContent = 'Daily puzzle · ' + dateKey();
+    }
+
+    drawBackground() {
+      const g = this.add.graphics();
+      g.fillGradientStyle(0x1a2744, 0x1a2744, 0x2d4a6f, 0x2d4a6f, 1);
+      g.fillRect(0, 0, 400, this.STREET_Y);
+
+      const bldgColors = [0x2a3548, 0x323f54, 0x283040, 0x3a4558];
+      for (let i = 0; i < 6; i++) {
+        const bw = 50 + Math.floor(i * 17) % 40;
+        const bh = 60 + (i * 23) % 50;
+        const bx = i * 68 - 10;
+        g.fillStyle(bldgColors[i % bldgColors.length], 1);
+        g.fillRect(bx, this.STREET_Y - bh, bw, bh);
+        g.fillStyle(0xffe066, 0.35);
+        for (let w = 0; w < 3; w++) {
+          g.fillRect(bx + 8 + w * 14, this.STREET_Y - bh + 12, 8, 10);
+        }
+      }
+    }
+
+    drawStreet() {
+      const y = this.STREET_Y;
+      const h = this.STREET_H;
+      const g = this.add.graphics();
+
+      g.fillStyle(0x3d4450, 1);
+      g.fillRect(0, y - 18, 400, 18);
+      g.fillRect(0, y + h, 400, 18);
+
+      g.fillStyle(0x4a4f58, 1);
+      g.fillRect(0, y, 400, h);
+
+      g.fillStyle(0xffffff, 0.15);
+      for (let i = 0; i < 5; i++) {
+        g.fillRect(40 + i * 80, y + h / 2 - 2, 24, 4);
+      }
+
+      this.add.text(8, y + h / 2, '🏁', { fontSize: '28px' }).setOrigin(0, 0.5);
+      this.add.text(372, y + h / 2, '🚪', { fontSize: '28px' }).setOrigin(1, 0.5);
+
+      this.segmentRects = [];
+      for (let i = 0; i < 5; i++) {
+        const sx = this.SEG_START_X + i * this.SEG_W;
+        const sg = this.add.graphics();
+        this.segmentRects.push({ g: sg, x: sx, y: y + 10, w: this.SEG_W - 4, h: h - 20 });
+      }
+      this.updateSegmentHighlights();
+    }
+
+    updateSegmentHighlights() {
+      for (let i = 0; i < 5; i++) {
+        const r = this.segmentRects[i];
+        r.g.clear();
+        if (i === this.segmentIndex && !this.inputLocked) {
+          r.g.lineStyle(3, 0x4a9eff, 1);
+          r.g.fillStyle(0x4a9eff, 0.12);
+        } else if (i < this.segmentIndex || (i === this.segmentIndex && this.inputLocked)) {
+          r.g.lineStyle(2, 0x3d7a50, 0.8);
+          r.g.fillStyle(0x3d7a50, 0.08);
+        } else {
+          r.g.lineStyle(1, 0x5a6070, 0.5);
+          r.g.fillStyle(0x000000, 0.05);
+        }
+        r.g.fillRoundedRect(r.x, r.y, r.w, r.h, 6);
+        r.g.strokeRoundedRect(r.x, r.y, r.w, r.h, 6);
+      }
+    }
+
+    getSegmentCenterX(index) {
+      const r = this.segmentRects[index];
+      return r.x + r.w / 2;
+    }
+
+    renderSegment(index) {
+      this.segmentIndex = index;
+      this.updateSegmentHighlights();
+
+      if (this.obstacleText) this.obstacleText.destroy();
+      if (this.statusText) this.statusText.destroy();
+      if (this.policeText) this.policeText.destroy();
+      if (this.outcomeDisplay) this.outcomeDisplay.destroy();
+      if (this.outcomeTimeText) this.outcomeTimeText.destroy();
+
+      const seg = this.segments[index];
+      const cx = this.getSegmentCenterX(index);
+      const cy = this.STREET_Y + this.STREET_H / 2 - 10;
+
+      this.obstacleText = this.add.text(cx, cy - 20, seg.obstacleEmoji, {
+        fontSize: '48px'
+      }).setOrigin(0.5);
+
+      this.statusText = this.add.text(cx, cy + 28, seg.visibleStatus, {
+        fontSize: '24px'
+      }).setOrigin(0.5);
+
+      if (seg.type === 'car' && seg.policePresent && this.cumulativeInsight >= 2) {
+        this.policeText = this.add.text(cx + 28, cy + 28, '👮‍♂️', {
+          fontSize: '22px'
+        }).setOrigin(0, 0.5);
+      }
+
+      this.setActionButtonsEnabled(true);
+      this.inputLocked = false;
+    }
+
+    createActionButtons() {
+      const actions = [
+        { key: 'go', emoji: '👉' },
+        { key: 'wait', emoji: '⏸️' },
+        { key: 'detour', emoji: '🔄' }
+      ];
+      const btnSize = 72;
+      const gap = 16;
+      const totalW = actions.length * btnSize + (actions.length - 1) * gap;
+      const startX = (400 - totalW) / 2 + btnSize / 2;
+      const by = 600;
+
+      this.actionButtons = [];
+
+      for (let i = 0; i < actions.length; i++) {
+        const ax = startX + i * (btnSize + gap);
+        const bg = this.add.graphics();
+        bg.fillStyle(0x2a2f3a, 1);
+        bg.fillRoundedRect(ax - btnSize / 2, by - btnSize / 2, btnSize, btnSize, 14);
+        bg.lineStyle(2, 0x4a5568, 1);
+        bg.strokeRoundedRect(ax - btnSize / 2, by - btnSize / 2, btnSize, btnSize, 14);
+
+        const txt = this.add.text(ax, by, actions[i].emoji, {
+          fontSize: '32px'
+        }).setOrigin(0.5);
+
+        const hit = this.add.rectangle(ax, by, btnSize, btnSize, 0x000000, 0)
+          .setInteractive({ useHandCursor: true });
+
+        const actionKey = actions[i].key;
+        const self = this;
+
+        hit.on('pointerover', function () {
+          if (self.inputLocked) return;
+          bg.clear();
+          bg.fillStyle(0x3a4558, 1);
+          bg.fillRoundedRect(ax - btnSize / 2, by - btnSize / 2, btnSize, btnSize, 14);
+          bg.lineStyle(2, 0x4a9eff, 1);
+          bg.strokeRoundedRect(ax - btnSize / 2, by - btnSize / 2, btnSize, btnSize, 14);
+        });
+        hit.on('pointerout', function () {
+          bg.clear();
+          bg.fillStyle(0x2a2f3a, 1);
+          bg.fillRoundedRect(ax - btnSize / 2, by - btnSize / 2, btnSize, btnSize, 14);
+          bg.lineStyle(2, 0x4a5568, 1);
+          bg.strokeRoundedRect(ax - btnSize / 2, by - btnSize / 2, btnSize, btnSize, 14);
+        });
+        hit.on('pointerdown', function () {
+          if (!self.inputLocked) self.handleChoice(actionKey);
+        });
+
+        this.actionButtons.push({ bg: bg, hit: hit, txt: txt, ax: ax, by: by, btnSize: btnSize });
+      }
+    }
+
+    setActionButtonsEnabled(enabled) {
+      const alpha = enabled ? 1 : 0.4;
+      this.actionButtons.forEach(function (b) {
+        b.txt.setAlpha(alpha);
+        b.hit.input.enabled = enabled;
+      });
+    }
+
+    handleChoice(action) {
+      if (this.inputLocked) return;
+      this.inputLocked = true;
+      this.setActionButtonsEnabled(false);
+      this.updateSegmentHighlights();
+
+      const idx = this.segmentIndex;
+      const seg = this.segments[idx];
+      const insightBefore = this.cumulativeInsight;
+      const outcome = getOutcome(seg, action, insightBefore);
+
+      this.totalTime += outcome.timePenalty;
+      this.traits.ei += outcome.traits.ei;
+      this.traits.insight += outcome.traits.insight;
+      this.traits.reliability += outcome.traits.reliability;
+
+      this.cumulativeInsight += outcome.traits.insight;
+
+      const optimal = bestActionForSegment(seg, insightBefore);
+      if (optimal !== null && action === optimal) {
+        this.cumulativeInsight += 1;
+        this.traits.insight += 1;
+      }
+
+      this.replayLog.push({
+        obstacleEmoji: seg.obstacleEmoji,
+        actionEmoji: ACTION_EMOJI[action],
+        outcomeEmoji: REPLAY_OUTCOME[outcome.outcomeIcon]
+      });
+
+      const cx = this.getSegmentCenterX(idx);
+      const iconY = this.STREET_Y + this.STREET_H + 24;
+
+      if (this.segmentOutcomeIcons[idx]) this.segmentOutcomeIcons[idx].destroy();
+      if (this.segmentTimeTexts[idx]) this.segmentTimeTexts[idx].destroy();
+
+      const iconColor = outcome.outcomeIcon === 'success' ? '#4ade80'
+        : outcome.outcomeIcon === 'fail' ? '#f87171' : '#fbbf24';
+
+      const segIcon = this.add.text(cx + 20, this.STREET_Y + 16, OUTCOME_EMOJI[outcome.outcomeIcon], {
+        fontSize: '22px',
+        color: iconColor
+      }).setOrigin(0.5).setScale(0);
+
+      const segTime = this.add.text(cx, this.STREET_Y + this.STREET_H + 4, '+' + outcome.timePenalty + 's', {
+        fontSize: '12px',
+        fontFamily: 'system-ui, sans-serif',
+        color: '#8b919a'
+      }).setOrigin(0.5).setAlpha(0);
+
+      this.segmentOutcomeIcons[idx] = segIcon;
+      this.segmentTimeTexts[idx] = segTime;
+
+      this.tweens.add({
+        targets: segIcon,
+        scale: 1,
+        duration: 280,
+        ease: 'Back.easeOut'
+      });
+      this.tweens.add({
+        targets: segTime,
+        alpha: 1,
+        duration: 300,
+        delay: 100
+      });
+
+      if (this.outcomeDisplay) this.outcomeDisplay.destroy();
+      if (this.outcomeTimeText) this.outcomeTimeText.destroy();
+
+      this.outcomeDisplay = this.add.text(200, 430, OUTCOME_EMOJI[outcome.outcomeIcon], {
+        fontSize: '40px',
+        color: iconColor
+      }).setOrigin(0.5).setScale(0);
+
+      this.outcomeTimeText = this.add.text(200, 472, '+' + outcome.timePenalty + 's', {
+        fontSize: '18px',
+        fontFamily: 'system-ui, sans-serif',
+        color: '#8b919a'
+      }).setOrigin(0.5).setAlpha(0);
+
+      this.tweens.add({
+        targets: this.outcomeDisplay,
+        scale: 1,
+        duration: 300,
+        ease: 'Back.easeOut'
+      });
+      this.tweens.add({
+        targets: this.outcomeTimeText,
+        alpha: 1,
+        duration: 250,
+        delay: 150
+      });
+
+      const self = this;
+      this.time.delayedCall(1000, function () {
+        const next = idx + 1;
+        if (next < 5) {
+          self.renderSegment(next);
+        } else {
+          self.registry.set('totalTime', self.totalTime);
+          self.registry.set('traits', { ei: self.traits.ei, insight: self.traits.insight, reliability: self.traits.reliability });
+          self.registry.set('replayLog', self.replayLog.slice());
+          self.scene.start('ResultScene', {
+            totalTime: self.totalTime,
+            traits: { ei: self.traits.ei, insight: self.traits.insight, reliability: self.traits.reliability },
+            replayLog: self.replayLog.slice()
+          });
+        }
+      });
+    }
+  }
+
+  class ResultScene extends Phaser.Scene {
+    constructor() { super('ResultScene'); }
+
+    init(data) {
+      this.resultData = data || {};
+    }
+
+    create() {
+      const totalTime = this.resultData.totalTime != null
+        ? this.resultData.totalTime
+        : this.registry.get('totalTime') || 0;
+      const traitsObj = this.resultData.traits || this.registry.get('traits') || { ei: 0, insight: 0, reliability: 0 };
+      const replayLog = this.resultData.replayLog || this.registry.get('replayLog') || [];
+
+      const w = this.scale.width;
+      const strip = buildReplayStrip(replayLog);
+      this.shareText = buildShareText(strip, totalTime, traitsObj);
+
+      this.add.text(w / 2, 36, 'Results', {
+        fontSize: '28px',
+        fontFamily: 'system-ui, sans-serif',
+        color: '#ffffff',
+        fontStyle: 'bold'
+      }).setOrigin(0.5);
+
+      let timeLine = 'Final: ' + totalTime + 's (target 30s)';
+      if (totalTime <= 30) {
+        timeLine += ' 🏆';
+      } else {
+        timeLine += '\n+' + (totalTime - 30) + 's over';
+      }
+
+      this.add.text(w / 2, 88, timeLine, {
+        fontSize: '16px',
+        fontFamily: 'system-ui, sans-serif',
+        color: totalTime <= 30 ? '#4ade80' : '#fbbf24',
+        align: 'center',
+        lineSpacing: 4
+      }).setOrigin(0.5);
+
+      this.add.text(w / 2, 140, 'EI ' + formatTrait(traitsObj.ei) +
+        ', Insight ' + formatTrait(traitsObj.insight) +
+        ', Reliability ' + formatTrait(traitsObj.reliability), {
+        fontSize: '14px',
+        fontFamily: 'system-ui, sans-serif',
+        color: '#8b919a',
+        align: 'center'
+      }).setOrigin(0.5);
+
+      this.add.text(w / 2, 175, 'Replay', {
+        fontSize: '12px',
+        fontFamily: 'system-ui, sans-serif',
+        color: '#6b7280'
+      }).setOrigin(0.5);
+
+      const stripDisplay = strip || '(no moves)';
+      this.add.text(w / 2, 220, stripDisplay, {
+        fontSize: '13px',
+        fontFamily: 'system-ui, sans-serif',
+        color: '#e8eaed',
+        align: 'center',
+        wordWrap: { width: 360 },
+        lineSpacing: 8
+      }).setOrigin(0.5, 0);
+
+      this.makeButton(w / 2, 520, 'Share', 0x3b82f6, function () {
+        const text = this.shareText;
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(text).then(function () {
+            alert('Copied to clipboard!');
+          }).catch(function () {
+            prompt('Copy this text:', text);
+          });
+        } else {
+          prompt('Copy this text:', text);
+        }
+      });
+
+      this.makeButton(w / 2, 590, 'Play Again', 0x4a5568, function () {
+        this.scene.start('GameScene');
+      });
+    }
+
+    makeButton(cx, cy, label, color, callback) {
+      const btnW = 220;
+      const btnH = 48;
+      const bx = cx - btnW / 2;
+      const by = cy - btnH / 2;
+
+      const bg = this.add.graphics();
+      bg.fillStyle(color, 1);
+      bg.fillRoundedRect(bx, by, btnW, btnH, 12);
+
+      this.add.text(cx, cy, label, {
+        fontSize: '17px',
+        fontFamily: 'system-ui, sans-serif',
+        color: '#ffffff',
+        fontStyle: 'bold'
+      }).setOrigin(0.5);
+
+      const hit = this.add.rectangle(cx, cy, btnW, btnH, 0x000000, 0)
+        .setInteractive({ useHandCursor: true });
+
+      const self = this;
+      hit.on('pointerdown', function () {
+        callback.call(self);
+      });
+    }
+  }
+
+  const config = {
+    type: Phaser.AUTO,
+    width: 400,
+    height: 700,
+    parent: 'game-container',
+    backgroundColor: '#1a1d24',
+    scene: [BootScene, MenuScene, GameScene, ResultScene],
+    scale: { mode: Phaser.Scale.NONE }
+  };
+
+  window.CrosschoicesCore = {
+    dailySeed: dailySeed,
+    dateKey: dateKey,
+    mulberry32: mulberry32,
+    generateDailyPuzzle: generateDailyPuzzle,
+    getOutcome: getOutcome,
+    bestActionForSegment: bestActionForSegment,
+    buildReplayStrip: buildReplayStrip,
+    buildShareText: buildShareText,
+    traitSum: traitSum,
+    ACTION_EMOJI: ACTION_EMOJI,
+    REPLAY_OUTCOME: REPLAY_OUTCOME
+  };
+
+  document.getElementById('daily-caption').textContent = 'Daily puzzle · ' + dateKey();
+  window.crosschoicesGame = new Phaser.Game(config);
+})();
+  </script>
+</body>
+</html>

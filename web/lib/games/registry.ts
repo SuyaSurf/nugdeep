@@ -1,6 +1,6 @@
 "use client";
 
-import type { GameCategory } from "@/lib/juice/audio-engine";
+import type { GameCategory } from "@/lib/games/game-engine";
 import type { ColorPalette } from "@/lib/juice/color-palette";
 import { getGamePalette } from "@/lib/juice/color-palette";
 
