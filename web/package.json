@@ -16,7 +16,6 @@
     "@livekit/components-react": "^2.9.21",
     "@react-three/drei": "^10.7.7",
     "@react-three/fiber": "^9.6.1",
-    "@rive-app/react-canvas": "^4.29.1",
     "@types/three": "^0.184.1",
     "clsx": "^2.1.1",
     "livekit-client": "^2.19.2",
